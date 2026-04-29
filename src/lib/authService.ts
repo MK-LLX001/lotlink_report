@@ -23,6 +23,7 @@ export const ALL_PERMISSIONS = [
   { key: "issue_delete",   label: "ລຶບ Issue",                  group: "ການຈັດການ Issue" },
   { key: "issue_import",   label: "Import Excel",               group: "ການຈັດການ Issue" },
   { key: "issue_export",   label: "Export Excel",               group: "ການຈັດການ Issue" },
+  { key: "issue_print",    label: "ພິມລາຍງານ (Print)",          group: "ການຈັດການ Issue" },
   { key: "user_manage",    label: "ສ້າງ/ແກ້ໄຂ/ລຶບ User",       group: "ການຈັດການ User" },
 ] as const;
 
@@ -32,13 +33,13 @@ export type Permissions = Record<string, boolean>;
 export const DEFAULT_PERMISSIONS: Permissions = {
   page_dashboard: false, page_issues: false, page_users: false,
   issue_add: false, issue_edit: false, issue_delete: false,
-  issue_import: false, issue_export: false, user_manage: false,
+  issue_import: false, issue_export: false, issue_print: false, user_manage: false,
 };
 
 export const ADMIN_PERMISSIONS: Permissions = {
   page_dashboard: true, page_issues: true, page_users: true,
   issue_add: true, issue_edit: true, issue_delete: true,
-  issue_import: true, issue_export: true, user_manage: true,
+  issue_import: true, issue_export: true, issue_print: true, user_manage: true,
 };
 
 // ── User type ─────────────────────────────────────────────────────────────────
@@ -187,7 +188,8 @@ export async function updateUserProfile(
       Object.entries(update.permissions as Permissions).filter(([k]) => k && k.trim() !== "")
     );
   }
-  await updateDoc(doc(db, "users", uid), update);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await updateDoc(doc(db, "users", uid), update as any);
 }
 
 export async function toggleUserActive(uid: string, active: boolean): Promise<void> {

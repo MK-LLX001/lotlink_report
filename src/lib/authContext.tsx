@@ -7,7 +7,7 @@ import { getUserProfile, type AppUser, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS } 
 import { subscribeToMenus, type AppMenu } from "@/lib/menuService";
 
 const IDLE_TIMEOUT_MS    = 20 * 60 * 1000; // 20 นาที ไม่มีการเคลื่อนไหว
-const SESSION_TIMEOUT_MS = 2  * 60 * 60 * 1000; // 2 ชั่วโมง นับจาก login
+const SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 ชั่วโมง นับจาก login
 
 const IDLE_EVENTS = ["mousemove", "mousedown", "keydown", "touchstart", "scroll", "click"] as const;
 
@@ -123,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           });
         });
 
-        // Realtime: menus — subscribe เฉพาะตอน login แล้วเท่านั้น
+
         menusUnsubRef.current = subscribeToMenus((m) => setMenus(m));
 
       } else {

@@ -20,16 +20,30 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // ຫາໜ້າທໍາອິດທີ່ user ມີສິດ (static ກ່ອນ, ແລ້ວ dynamic)
+  // ຫາໜ້າທໍາອິດທີ່ user ມີສິດ (static ກ່ອນ, ແລ້ວ dynamic ເຮຽງຕາມ sidebar)
   const getFirstPermittedPage = (): string | null => {
     if (perm("page_dashboard")) return "/dashboard";
     if (perm("page_issues"))    return "/issues";
     if (perm("page_users"))     return "/admin/users";
     if (perm("user_manage"))    return "/admin/menus";
-    // ຊອກຫາ dynamic menu item ທໍາອິດທີ່ user ມີສິດ
-    const firstDynamic = menus.find(
-      m => m.type === "item" && m.active && m.href && perm(m.permKey)
-    );
+    // ຮຽງ dynamic menus ຕາມ sidebar ຈິງ: section order → group order → item order
+    const sectionOrder: Record<string, number> = {};
+    const groupOrder:   Record<string, number> = {};
+    menus.forEach(m => {
+      if (m.type === "section" && m.id) sectionOrder[m.id] = m.order;
+      if (m.type === "group"   && m.id) groupOrder[m.id]   = m.order;
+    });
+    const firstDynamic = menus
+      .filter(m => m.type === "item" && m.active && m.href && perm(m.permKey))
+      .sort((a, b) => {
+        const secA = sectionOrder[a.sectionId] ?? 999;
+        const secB = sectionOrder[b.sectionId] ?? 999;
+        if (secA !== secB) return secA - secB;
+        const grpA = a.parentId ? (groupOrder[a.parentId] ?? 999) : -1;
+        const grpB = b.parentId ? (groupOrder[b.parentId] ?? 999) : -1;
+        if (grpA !== grpB) return grpA - grpB;
+        return a.order - b.order;
+      })[0];
     if (firstDynamic?.href) return firstDynamic.href;
     return null;
   };

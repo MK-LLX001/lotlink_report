@@ -49,7 +49,7 @@ function groupByDraw(rows: RewardChannelRow[]) {
 }
 
 export default function ScnRewardDrawidChannelPage() {
-  const { user } = useAuth();
+  const { user, perm } = useAuth();
 
   const [allDrawIds,  setAllDrawIds]  = useState<string[]>([]);
   const [allChannels, setAllChannels] = useState<string[]>([]);
@@ -84,9 +84,9 @@ export default function ScnRewardDrawidChannelPage() {
       const cJson = await cRes.json();
       const ids: string[] = (rJson.rows ?? [])
         .map((r: Record<string, unknown>) => String(r.ROUNDID ?? "")).filter(Boolean);
-      const channels: string[] = [...new Set<string>(
+      const channels: string[] = Array.from(new Set<string>(
         (cJson.rows ?? []).map((r: Record<string, unknown>) => String(r.CHANNEL ?? "")).filter(Boolean)
-      )].sort();
+      )).sort();
       setAllDrawIds(ids);
       setAllChannels(channels);
     } catch (e: unknown) {
@@ -261,7 +261,7 @@ export default function ScnRewardDrawidChannelPage() {
       thead { display: table-header-group; }
       tfoot { display: table-footer-group; }
       tr { page-break-inside: avoid; }
-      .overflow-x-auto { overflow: visible !important; }
+.overflow-x-auto { overflow: visible !important; }
       .print-area img {
         display: block !important;
         visibility: visible !important;
@@ -303,10 +303,12 @@ export default function ScnRewardDrawidChannelPage() {
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-black text-slate-600 hover:bg-slate-50 transition">
               <RefreshCw size={13} className={loadingIds ? "animate-spin" : ""} /> ໂຫຼດໃໝ່
             </button>
-            <button onClick={handlePrint} disabled={filtered.length === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-700 text-white hover:bg-slate-800 disabled:opacity-40 transition">
-              <Printer size={13} /> ພິມ A4
-            </button>
+            {perm("issue_print") && (
+              <button onClick={handlePrint} disabled={filtered.length === 0}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-700 text-white hover:bg-slate-800 disabled:opacity-40 transition">
+                <Printer size={13} /> ພິມ A4
+              </button>
+            )}
           </div>
         </div>
 
@@ -376,17 +378,34 @@ export default function ScnRewardDrawidChannelPage() {
           </div>
         </div>
 
-        {/* Print header */}
-        <div className="hidden print:block mb-3">
-          <div style={{ position: "relative", minHeight: "60px" }}>
+        {/* Print header: Logo + date only, no border */}
+        <div className="hidden print:block mb-2">
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/sokxay.png" alt="Logo" style={{ position: "absolute", top: 0, left: 0, height: "56px", width: "auto", objectFit: "contain" }} />
-            <div style={{ textAlign: "center", paddingTop: "4px" }}>
-              <h1 style={{ fontSize: "15px", fontWeight: "bold", margin: 0 }}>ລາຍງານ Reward SCN - ສັງລວມຕາມຊ່ອງທາງຊຳລະເງິນ</h1>
-              {filterSummary && <div style={{ marginTop: "4px", fontSize: "10px", color: "#555" }}>🔍 ຕົວກອງ: {filterSummary}</div>}
-              <p style={{ fontSize: "10px", color: "#888", marginTop: "2px" }}>ພິມວັນທີ: {new Date().toLocaleString("lo-LA")}</p>
-            </div>
+            <img
+              src="/sokxay.png"
+              alt="Company Logo"
+              style={{ height: "48px", width: "auto", objectFit: "contain" }}
+            />
+            <p style={{ fontSize: "9px", color: "#888", margin: "2px 0 0 2px", whiteSpace: "nowrap" }}>
+              ພິມວັນທີ: {new Date().toLocaleString("lo-LA")}
+            </p>
+            {user?.displayName && (
+              <p style={{ fontSize: "9px", color: "#888", margin: "1px 0 0 2px", whiteSpace: "nowrap" }}>
+                ຜູ້ພິມ: {user.displayName}
+              </p>
+            )}
           </div>
+        </div>
+
+        {/* Print title: centered, outside table container, no border */}
+        <div className="hidden print:block mb-2" style={{ textAlign: "center" }}>
+          <h1 style={{ fontSize: "16px", fontWeight: "bold", margin: 0 }}>ລາຍງານ ການຈ່າຍລາງວັນ SCN - ສັງລວມຕາມງວດ + Channel</h1>
+          {filterSummary && (
+            <div style={{ marginTop: "3px", fontSize: "10px", color: "#555" }}>
+              ຕົວກອງ: {filterSummary}
+            </div>
+          )}
         </div>
 
         {(idsError || rowsError) && (
@@ -510,9 +529,10 @@ export default function ScnRewardDrawidChannelPage() {
         {/* Signature */}
         {hasSearched && filtered.length > 0 && (
           <div className="print-signature hidden">
-            <div className="sig-box"><div className="sig-line">ຜູ້ລາຍງານ</div><div className="sig-role">( .............................................. )</div></div>
-            <div className="sig-box"><div className="sig-line">ຜູ້ກວດສອບ</div><div className="sig-role">( .............................................. )</div></div>
-            <div className="sig-box"><div className="sig-line">ຜູ້ອະນຸມັດ</div><div className="sig-role">( .............................................. )</div></div>
+            <div className="sig-box"><div className="sig-line">ອຳນວຍການ ບໍລິສັດ <br /> Sokxay One Plus E-commerce</div><div className="sig-role">( .............................................. )</div></div>
+            <div className="sig-box"><div className="sig-line">ຜູ້ຈັດການບັນຊີ <br /> ບໍລິສັດ ຫວຍ</div><div className="sig-role">( .............................................. )</div></div>
+            <div className="sig-box"><div className="sig-line">IT ບໍລິສັດ <br /> Sokxay One Plus E-commerce</div><div className="sig-role">( .............................................. )</div></div>
+            <div className="sig-box"><div className="sig-line">ຜູ້ສັງລວມ</div><div className="sig-role">( .............................................. )</div></div>
           </div>
         )}
       </div>

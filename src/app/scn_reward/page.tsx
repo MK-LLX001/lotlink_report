@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   RefreshCw, Search, ChevronUp, ChevronDown,
-  AlertCircle, Gift, ChevronLeft, ChevronRight, X, Filter, Printer,
+  AlertCircle, Gift, ChevronLeft, ChevronRight, X, Filter,
 } from "lucide-react";
 import { useAuth } from "@/lib/authContext";
 import { logActivity } from "@/lib/activityService";
@@ -176,42 +176,12 @@ export default function ScnRewardPage() {
     applied.search  && `ຄົ້ນຫາ: "${applied.search}"`,
   ].filter(Boolean).join("  |  ");
 
-  const handlePrint = () => {
-    if (user) logActivity({ uid: user.uid, displayName: user.displayName, email: user.email, action: "reward_print", detail: `Reward: ${applied.drawId || "ທັງໝົດ"} (${total.toLocaleString()} ລາຍການ)` });
-    window.print();
-  };
-
-  const PRINT_CSS = `
-    @media print {
-      @page { size: A4 landscape; margin: 10mm; }
-      html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      body * { visibility: hidden; }
-      .print-area, .print-area * { visibility: visible; }
-      .print-area { position: absolute; top: 0; left: 0; width: 100%; }
-      .no-print { display: none !important; }
-      * { font-family: 'Phetsarath OT', sans-serif !important; color: #000 !important; box-shadow: none !important; border-radius: 0 !important; }
-      .print-area div { border-radius: 0 !important; overflow: visible !important; box-shadow: none !important; border: none !important; background: #fff !important; background-color: #fff !important; }
-      table { font-size: 9px !important; width: 100% !important; border-collapse: collapse !important; border: 1px solid #000 !important; }
-      th, td { padding: 2px 4px !important; font-size: 9px !important; border: 1px solid #000 !important; color: #000 !important; background: #fff !important; background-color: #fff !important; }
-      thead tr th { background: #d0d0d0 !important; background-color: #d0d0d0 !important; font-weight: bold !important; border: 1px solid #000 !important; }
-      tfoot tr td { background: #a0a0a0 !important; background-color: #a0a0a0 !important; font-weight: bold !important; border: 1px solid #000 !important; }
-      thead { display: table-header-group; }
-      tr { page-break-inside: avoid; }
-      .overflow-x-auto { overflow: visible !important; }
-      .print-area img { display: block !important; visibility: visible !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .print-signature { display: flex !important; justify-content: space-around; margin-top: 20mm; page-break-inside: avoid; }
-      .print-signature .sig-box { text-align: center; width: 180px; }
-      .print-signature .sig-line { border-top: 1px solid #000 !important; margin-top: 15mm; padding-top: 4px; font-size: 10px; }
-      .print-signature .sig-role { font-size: 9px; margin-top: 2px; }
-    }
-  `;
 
   const TH        = "px-3 py-2.5 text-center font-bold text-slate-700 cursor-pointer hover:text-amber-600 select-none whitespace-nowrap bg-yellow-100 border border-black text-[11px]";
   const selectCls = "px-3 py-2 text-sm border border-black rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white w-48 disabled:opacity-50";
 
   return (
     <>
-      <style>{PRINT_CSS}</style>
       <div className="print-area flex flex-col gap-4">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 no-print">
@@ -231,10 +201,6 @@ export default function ScnRewardPage() {
         >
           <RefreshCw size={13} className={loading ? "animate-spin" : ""} /> ໂຫຼດໃໝ່
         </button>
-          <button onClick={handlePrint} disabled={!hasSearched || total === 0}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg bg-slate-700 text-white hover:bg-slate-800 disabled:opacity-40 transition">
-            <Printer size={13} /> ພິມ A4
-          </button>
       </div>
 
       {/* Filter bar */}
@@ -307,17 +273,34 @@ export default function ScnRewardPage() {
       </div>
 
       {/* Error */}
-        {/* Print header */}
-        <div className="hidden print:block mb-3">
-          <div style={{ position: "relative", minHeight: "60px" }}>
+        {/* Print header: Logo + date only, no border */}
+        <div className="hidden print:block mb-2">
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/sokxay.png" alt="Logo" style={{ position: "absolute", top: 0, left: 0, height: "56px", width: "auto", objectFit: "contain" }} />
-            <div style={{ textAlign: "center", paddingTop: "4px" }}>
-              <h1 style={{ fontSize: "15px", fontWeight: "bold", margin: 0 }}>ລາຍງານ ການຈ່າຍລາງວັນ ຫວຍ SCN - ລາຍລະອຽດ</h1>
-              {filterSummary && <div style={{ marginTop: "4px", fontSize: "10px", color: "#555" }}>🔍 ຕົວກອງ: {filterSummary}</div>}
-              <p style={{ fontSize: "10px", color: "#888", marginTop: "2px" }}>ພິມວັນທີ: {new Date().toLocaleString("lo-LA")}</p>
-            </div>
+            <img
+              src="/sokxay.png"
+              alt="Company Logo"
+              style={{ height: "48px", width: "auto", objectFit: "contain" }}
+            />
+            <p style={{ fontSize: "9px", color: "#888", margin: "2px 0 0 2px", whiteSpace: "nowrap" }}>
+              ພິມວັນທີ: {new Date().toLocaleString("lo-LA")}
+            </p>
+            {user?.displayName && (
+              <p style={{ fontSize: "9px", color: "#888", margin: "1px 0 0 2px", whiteSpace: "nowrap" }}>
+                ຜູ້ພິມ: {user.displayName}
+              </p>
+            )}
           </div>
+        </div>
+
+        {/* Print title: centered, outside table container, no border */}
+        <div className="hidden print:block mb-2" style={{ textAlign: "center" }}>
+          <h1 style={{ fontSize: "16px", fontWeight: "bold", margin: 0 }}>ລາຍງານ ການຈ່າຍລາງວັນ ຫວຍ SCN - ລາຍລະອຽດ</h1>
+          {filterSummary && (
+            <div style={{ marginTop: "3px", fontSize: "10px", color: "#555" }}>
+              ຕົວກອງ: {filterSummary}
+            </div>
+          )}
         </div>
 
       {error && (

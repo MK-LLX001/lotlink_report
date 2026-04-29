@@ -18,7 +18,7 @@ function SortIcon({ col, sort }: { col: SortKey; sort: { key: SortKey; dir: Sort
 }
 
 export default function ScnLottoSellMonthPage() {
-  const { user } = useAuth();
+  const { user, perm } = useAuth();
   const [rows, setRows]         = useState<MonthRow[]>([]);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState<string | null>(null);
@@ -210,8 +210,7 @@ export default function ScnLottoSellMonthPage() {
       thead { display: table-header-group; }
       tfoot { display: table-footer-group; }
       tr { page-break-inside: avoid; }
-
-      .overflow-x-auto { overflow: visible !important; }
+.overflow-x-auto { overflow: visible !important; }
 
       .print-area img {
         display: block !important;
@@ -265,14 +264,16 @@ export default function ScnLottoSellMonthPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => { exportMonthExcel(sorted); if (user) logActivity({ uid: user.uid, displayName: user.displayName, email: user.email, action: "lotto_export", detail: `ເດືອນ: ${appliedFrom||""}~${appliedTo||""} (${sorted.length} ລາຍການ)` }); }} disabled={sorted.length === 0}
+            <button onClick={() => { exportMonthExcel(sorted); if (user) logActivity({ uid: user.uid, displayName: user.displayName, email: user.email, action: "lotto_export", detail: `ເດືອນ: ${appliedFrom||""}~${appliedTo||""} (${sorted.length} ລາຍການ)` }); }} disabled={sorted.length === 0 || !perm("issue_export")}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40 transition">
               <Download size={13} /> Export Excel
             </button>
-            <button onClick={handlePrint} disabled={sorted.length === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-700 text-white hover:bg-slate-800 disabled:opacity-40 transition">
-              <Printer size={13} /> ພິມ A4
-            </button>
+            {perm("issue_print") && (
+              <button onClick={handlePrint} disabled={sorted.length === 0}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-700 text-white hover:bg-slate-800 disabled:opacity-40 transition">
+                <Printer size={13} /> ພິມ A4
+              </button>
+            )}
           </div>
         </div>
 
@@ -336,39 +337,34 @@ export default function ScnLottoSellMonthPage() {
           )}
         </div>
 
-        {/* Print header */}
-        <div className="hidden print:block mb-3">
-          <div style={{ position: "relative", minHeight: "60px" }}>
-            {/* Logo — top-left */}
+{/* Print header: Logo + date only, no border */}
+        <div className="hidden print:block mb-2">
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/sokxay.png"
               alt="Company Logo"
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                height: "56px",
-                width: "auto",
-                objectFit: "contain",
-                marginLeft: "4px",
-              }}
+              style={{ height: "48px", width: "auto", objectFit: "contain" }}
             />
-            {/* Title — centred */}
-            <div style={{ textAlign: "center", paddingTop: "4px" }}>
-              <h1 style={{ fontSize: "15px", fontWeight: "bold", margin: 0 }}>
-                ລາຍງານຍອດຂາຍຫວຍ SCN - ສັງລວມເປັນເດືອນ
-              </h1>
-              {filterSummary && (
-                <div style={{ marginTop: "4px", fontSize: "10px", color: "#555" }}>
-                  🔍 ຕົວກອງ: {filterSummary}
-                </div>
-              )}
-              <p style={{ fontSize: "10px", color: "#888", marginTop: "2px" }}>
-                ພິມວັນທີ: {new Date().toLocaleString("lo-LA")}
+            <p style={{ fontSize: "9px", color: "#888", margin: "2px 0 0 2px", whiteSpace: "nowrap" }}>
+              ພິມວັນທີ: {new Date().toLocaleString("lo-LA")}
+            </p>
+            {user?.displayName && (
+              <p style={{ fontSize: "9px", color: "#888", margin: "1px 0 0 2px", whiteSpace: "nowrap" }}>
+                ຜູ້ພິມ: {user.displayName}
               </p>
-            </div>
+            )}
           </div>
+        </div>
+
+        {/* Print title: centered, outside table container, no border */}
+        <div className="hidden print:block mb-2" style={{ textAlign: "center" }}>
+          <h1 style={{ fontSize: "16px", fontWeight: "bold", margin: 0 }}>ລາຍງານຍອດຂາຍຫວຍ SCN - ສັງລວມເປັນເດືອນ</h1>
+          {filterSummary && (
+            <div style={{ marginTop: "3px", fontSize: "10px", color: "#555" }}>
+              ຕົວກອງ: {filterSummary}
+            </div>
+          )}
         </div>
 
         {error && (
@@ -429,7 +425,7 @@ export default function ScnLottoSellMonthPage() {
                   ) : (
                     <>
                       {sorted.map((r, i) => (
-                        <tr key={i} className="hover:bg-slate-50">
+                        <tr key={i} className="hover:bg-slate-300">
                           <td className="px-2 py-1.5 text-center font-mono text-teal-700 font-semibold border border-black">{r.MONTH}</td>
                           <td className="px-2 py-1.5 text-right font-mono border border-black">{fmtN(r.TT_COUNT).toLocaleString()}</td>
                           <td className="px-2 py-1.5 text-right font-mono border border-black">{fmt(r.BILL_AMT)}</td>
@@ -469,15 +465,19 @@ export default function ScnLottoSellMonthPage() {
         {searched && sorted.length > 0 && (
           <div className="print-signature hidden">
             <div className="sig-box">
-              <div className="sig-line">ຜູ້ລາຍງານ</div>
+              <div className="sig-line">ອຳນວຍການ ບໍລິສັດ <br /> Sokxay One Plus E-commerce</div>
               <div className="sig-role">( .............................................. )</div>
             </div>
             <div className="sig-box">
-              <div className="sig-line">ຜູ້ກວດສອບ</div>
+              <div className="sig-line">ຜູ້ຈັດການບັນຊີ <br /> ບໍລິສັດ ຫວຍ</div>
               <div className="sig-role">( .............................................. )</div>
             </div>
             <div className="sig-box">
-              <div className="sig-line">ຜູ້ອະນຸມັດ</div>
+              <div className="sig-line">IT ບໍລິສັດ <br /> Sokxay One Plus E-commerce</div>
+              <div className="sig-role">( .............................................. )</div>
+            </div>
+            <div className="sig-box">
+              <div className="sig-line">ຜູ້ສັງລວມ</div>
               <div className="sig-role">( .............................................. )</div>
             </div>
           </div>

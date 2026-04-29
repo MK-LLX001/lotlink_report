@@ -13,7 +13,9 @@ import {
   Users, RefreshCw, Crown, Globe, Folder,
   LayoutDashboard, ClipboardList, FileText, BarChart3,
   Settings, Bell, Star, Bookmark, Database,
-  ShieldCheck, Tag, Package, Layers,
+  ShieldCheck, Tag, Package, Layers, ChevronDown,
+  PieChart, TrendingUp, Receipt, Wallet, CreditCard,
+  Building2, UserCheck, BarChart2, Activity,
 } from "lucide-react";
 import { type AppMenu } from "@/lib/menuService";
 import { logActivity } from "@/lib/activityService";
@@ -21,7 +23,9 @@ import { logActivity } from "@/lib/activityService";
 const ICON_MAP: Record<string, React.ElementType> = {
   LayoutDashboard, ClipboardList, Users, FileText, BarChart3,
   Settings, Bell, Star, Bookmark, Globe, Database,
-  ShieldCheck, Folder, Tag, Package, Layers,
+  ShieldCheck, Folder, Tag, Package, Layers, ChevronDown,
+  PieChart, TrendingUp, Receipt, Wallet, CreditCard,
+  Building2, UserCheck, BarChart2, Activity,
 };
 
 function DynIcon({ name, size = 13 }: { name: string; size?: number }) {
@@ -118,9 +122,10 @@ export default function UsersPage() {
   const openEdit = (u: AppUser) => {
     setEditTarget(u);
     const perms: Permissions = { ...DEFAULT_PERMISSIONS, ...u.permissions };
+    const seenKeys1 = new Set<string>();
     dynamicMenus
-      .filter(m => m.permKey && m.permKey.trim() !== "")
-      .forEach(m => { if (!(m.permKey in perms)) perms[m.permKey] = false; });
+      .filter(m => m.active && m.type === "item" && m.permKey && m.permKey.trim() !== "")
+      .forEach(m => { if (!seenKeys1.has(m.permKey)) { seenKeys1.add(m.permKey); if (!(m.permKey in perms)) perms[m.permKey] = false; } });
     setEditForm({ displayName: u.displayName, isAdmin: u.isAdmin, permissions: perms });
     setModal("edit");
     setError(null);
@@ -140,9 +145,10 @@ export default function UsersPage() {
       setEditForm(f => f ? { ...f, isAdmin: true, permissions: { ...ADMIN_PERMISSIONS } } : f);
     } else {
       const perms: Permissions = { ...DEFAULT_PERMISSIONS };
+      const seenKeys2 = new Set<string>();
       dynamicMenus
-        .filter(m => m.permKey && m.permKey.trim() !== "")
-        .forEach(m => { perms[m.permKey] = false; });
+        .filter(m => m.active && m.type === "item" && m.permKey && m.permKey.trim() !== "")
+        .forEach(m => { if (!seenKeys2.has(m.permKey)) { seenKeys2.add(m.permKey); perms[m.permKey] = false; } });
       setEditForm(f => f ? { ...f, isAdmin: false, permissions: perms } : f);
     }
   };
@@ -151,9 +157,10 @@ export default function UsersPage() {
     if (!editForm || editForm.isAdmin) return;
     const p: Permissions = {};
     ALL_PERMISSIONS.forEach(({ key }) => { p[key] = all; });
+    const seenKeys3 = new Set<string>();
     dynamicMenus
-      .filter(m => m.permKey && m.permKey.trim() !== "")
-      .forEach(m => { p[m.permKey] = all; });
+      .filter(m => m.active && m.type === "item" && m.permKey && m.permKey.trim() !== "")
+      .forEach(m => { if (!seenKeys3.has(m.permKey)) { seenKeys3.add(m.permKey); p[m.permKey] = all; } });
     setEditForm(f => f ? { ...f, permissions: p } : f);
   };
 
@@ -167,9 +174,10 @@ export default function UsersPage() {
       // ທຸກ permissions = false, isAdmin = false — ຄ່ອຍໄປຕັ້ງທີຫຼັງໃນໜ້າ Edit
       // filter permKey ຫວ່າງອອກ ເພາະ Firestore ບໍ່ຍອມໃຫ້ field key ເປັນ ""
       const allFalsePerms: Permissions = { ...DEFAULT_PERMISSIONS };
+      const seenKeys4 = new Set<string>();
       dynamicMenus
-        .filter(m => m.permKey && m.permKey.trim() !== "")
-        .forEach(m => { allFalsePerms[m.permKey] = false; });
+        .filter(m => m.active && m.type === "item" && m.permKey && m.permKey.trim() !== "")
+        .forEach(m => { if (!seenKeys4.has(m.permKey)) { seenKeys4.add(m.permKey); allFalsePerms[m.permKey] = false; } });
 
       await createUser({
         email:       createForm.email,
@@ -229,7 +237,25 @@ export default function UsersPage() {
     } catch { setError("ລຶບ user ຜິດພາດ"); }
   };
 
-  const activeMenus = dynamicMenus.filter(m => m.active);
+  // เรียงลำดับตาม sidebar จริง: section order → parent group order → item order
+  const sectionOrderMap = Object.fromEntries(
+    dynamicMenus.filter(m => m.type === "section").map(m => [m.id, m.order])
+  );
+  const groupOrderMap = Object.fromEntries(
+    dynamicMenus.filter(m => m.type === "group").map(m => [m.id, m.order])
+  );
+  const activeMenus = dynamicMenus
+    .filter(m => m.active && m.type === "item" && m.permKey && m.permKey.trim() !== "")
+    .filter((m, idx, arr) => arr.findIndex(x => x.permKey === m.permKey) === idx)
+    .sort((a, b) => {
+      const secA = sectionOrderMap[a.sectionId] ?? 999;
+      const secB = sectionOrderMap[b.sectionId] ?? 999;
+      if (secA !== secB) return secA - secB;
+      const grpA = a.parentId ? (groupOrderMap[a.parentId] ?? 999) : -1;
+      const grpB = b.parentId ? (groupOrderMap[b.parentId] ?? 999) : -1;
+      if (grpA !== grpB) return grpA - grpB;
+      return a.order - b.order;
+    });
 
   return (
     <div className="space-y-4">
