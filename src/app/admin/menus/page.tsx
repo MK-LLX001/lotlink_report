@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/authContext";
 import {
@@ -106,7 +106,9 @@ export default function MenusPage() {
   // ── form helpers ───────────────────────────────────────────────────────────
   const nextOrder = (parentId: string | null, sectionId: string) => {
     const siblings = menus.filter(m =>
-      m.parentId === (parentId || null) && m.sectionId === sectionId && m.type !== "section"
+      (m.parentId === parentId || (!m.parentId && !parentId)) &&
+      m.sectionId === sectionId &&
+      m.type !== "section"
     );
     return siblings.length > 0 ? Math.max(...siblings.map(m => m.order)) + 10 : 10;
   };
@@ -156,7 +158,11 @@ export default function MenusPage() {
         type:      form.type,
         label:     form.label.trim(),
         sectionId: form.type === "section" ? "__section__" : form.sectionId,
-        parentId:  form.type === "item" && form.parentId ? form.parentId : null,
+        parentId:  form.type === "section"
+                     ? null
+                     : form.parentId
+                       ? form.parentId
+                       : null,
         href:      form.type === "item" ? form.href : "",
         icon:      form.icon,
         permKey:   form.type === "item"
@@ -194,10 +200,16 @@ export default function MenusPage() {
 
   const handleDelete = async () => {
     if (!deleteTarget?.id) return;
-    // also delete children
-    const children = menus.filter(m => m.parentId === deleteTarget.id || m.sectionId === deleteTarget.id);
+    // recursive collect all descendants
+    const collectDescendants = (parentId: string): AppMenu[] => {
+      const children = menus.filter(m => m.parentId === parentId || m.sectionId === parentId);
+      return [...children, ...children.flatMap(c => c.id ? collectDescendants(c.id) : [])];
+    };
+    const descendants = collectDescendants(deleteTarget.id);
+    // deduplicate
+    const uniqueIds = [...new Set(descendants.map(d => d.id).filter(Boolean))] as string[];
     try {
-      await Promise.all(children.map(c => deleteMenu(c.id!)));
+      await Promise.all(uniqueIds.map(id => deleteMenu(id)));
       await deleteMenu(deleteTarget.id);
       if (user) logActivity({ uid: user.uid, displayName: user.displayName, email: user.email, action: "menu_delete", detail: deleteTarget.label });
       setSuccess(`ລຶບ "${deleteTarget.label}" ສໍາເລັດ`);
@@ -207,6 +219,75 @@ export default function MenusPage() {
   };
 
   // ── render tree ────────────────────────────────────────────────────────────
+  const renderGroupRows = (
+    groupsToRender: AppMenu[],
+    sectionId: string,
+    depth: number = 0
+  ): React.ReactNode => {
+    return groupsToRender.map(group => {
+      const groupChildren = menus
+        .filter(m => m.parentId === group.id && m.type === "item")
+        .sort((a, b) => a.order - b.order);
+      const nestedGroups = menus
+        .filter(m => m.parentId === group.id && m.type === "group")
+        .sort((a, b) => a.order - b.order);
+      const bgColor = depth % 2 === 0 ? "bg-amber-50/60" : "bg-orange-50/60";
+      const indentPx = 16 + depth * 24;
+
+      return (
+        <div key={group.id}>
+          {/* group row */}
+          <div className={`flex items-center gap-2 py-2.5 ${bgColor} ${!group.active ? "opacity-60" : ""}`}
+            style={{ paddingLeft: `${indentPx}px`, paddingRight: "16px" }}>
+            <GripVertical size={13} className="text-slate-300 shrink-0" />
+            <div className="w-6 h-6 rounded bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
+              <ChevronDown size={13} />
+            </div>
+            <div className="w-7 h-7 rounded-lg bg-white border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
+              <IconPreview name={group.icon} size={14} />
+            </div>
+            <span className="flex-1 text-sm font-semibold text-slate-700">{group.label}</span>
+            <span className="text-[10px] text-amber-500 font-mono mr-2">dropdown · order {group.order}</span>
+            <div className="flex items-center gap-1">
+              <button onClick={() => openCreate({ type: "item", sectionId, parentId: group.id! })}
+                title="ເພີ່ມ Item ໃນ Group ນີ້"
+                className="p-1.5 text-amber-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                <Plus size={13} />
+              </button>
+              <button onClick={() => openCreate({ type: "group", sectionId, parentId: group.id! })}
+                title="ເພີ່ມ Sub-Group (ຊ້ອນ)"
+                className="p-1.5 text-amber-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors">
+                <FolderOpen size={13} />
+              </button>
+              <button onClick={() => openEdit(group)} title="ແກ້ໄຂ Group"
+                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                <Pencil size={13} />
+              </button>
+              <button onClick={() => handleToggle(group)} title={group.active ? "ປິດ" : "ເປີດ"}
+                className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors">
+                {group.active ? <EyeOff size={13} /> : <Eye size={13} />}
+              </button>
+              <button onClick={() => setDeleteTarget(group)} title="ລຶບ"
+                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                <Trash2 size={13} />
+              </button>
+            </div>
+          </div>
+          {/* nested groups (sub-groups) */}
+          {nestedGroups.length > 0 && renderGroupRows(nestedGroups, sectionId, depth + 1)}
+          {/* group children items */}
+          {groupChildren.map(item => <ItemRow key={item.id} m={item} indent={depth + 1} />)}
+          {nestedGroups.length === 0 && groupChildren.length === 0 && (
+            <div className="py-2 text-xs text-slate-300 italic"
+              style={{ paddingLeft: `${indentPx + 24}px` }}>
+              ຍັງບໍ່ມີ item — ກົດ + ເພື່ອເພີ່ມ
+            </div>
+          )}
+        </div>
+      );
+    });
+  };
+
   const renderSectionRows = () => {
     if (sections.length === 0) return (
       <div className="flex flex-col items-center justify-center py-16 text-slate-400">
@@ -220,8 +301,13 @@ export default function MenusPage() {
     );
 
     return sections.map(sec => {
-      const secGroups = menus.filter(m => m.sectionId === sec.id && m.type === "group").sort((a, b) => a.order - b.order);
-      const secItems  = menus.filter(m => m.sectionId === sec.id && m.type === "item" && !m.parentId).sort((a, b) => a.order - b.order);
+      // top-level groups: sectionId ตรง และ parentId เป็น null หรือ ""
+      const secTopGroups = menus
+        .filter(m => m.sectionId === sec.id && m.type === "group" && (!m.parentId))
+        .sort((a, b) => a.order - b.order);
+      const secItems = menus
+        .filter(m => m.sectionId === sec.id && m.type === "item" && !m.parentId)
+        .sort((a, b) => a.order - b.order);
       const isExp = expandedSections[sec.id!] ?? true;
 
       return (
@@ -269,56 +355,10 @@ export default function MenusPage() {
               {/* top-level items in this section */}
               {secItems.map(item => <ItemRow key={item.id} m={item} indent={0} />)}
 
-              {/* groups */}
-              {secGroups.map(group => {
-                const groupItems = menus
-                  .filter(m => m.parentId === group.id && m.type === "item")
-                  .sort((a, b) => a.order - b.order);
-                return (
-                  <div key={group.id}>
-                    {/* group row */}
-                    <div className={`flex items-center gap-2 px-4 py-2.5 bg-amber-50/60 ${!group.active ? "opacity-60" : ""}`}>
-                      <GripVertical size={13} className="text-slate-300 shrink-0" />
-                      <div className="w-6 h-6 rounded bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
-                        <ChevronDown size={13} />
-                      </div>
-                      <div className="w-7 h-7 rounded-lg bg-white border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
-                        <IconPreview name={group.icon} size={14} />
-                      </div>
-                      <span className="flex-1 text-sm font-semibold text-slate-700">{group.label}</span>
-                      <span className="text-[10px] text-amber-500 font-mono mr-2">dropdown · order {group.order}</span>
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => openCreate({ type: "item", sectionId: sec.id!, parentId: group.id! })}
-                          title="ເພີ່ມ Item ໃນ Group ນີ້"
-                          className="p-1.5 text-amber-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                          <Plus size={13} />
-                        </button>
-                        <button onClick={() => openEdit(group)} title="ແກ້ໄຂ Group"
-                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                          <Pencil size={13} />
-                        </button>
-                        <button onClick={() => handleToggle(group)} title={group.active ? "ປິດ" : "ເປີດ"}
-                          className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors">
-                          {group.active ? <EyeOff size={13} /> : <Eye size={13} />}
-                        </button>
-                        <button onClick={() => setDeleteTarget(group)} title="ລຶບ"
-                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </div>
-                    {/* group children */}
-                    {groupItems.map(item => <ItemRow key={item.id} m={item} indent={1} />)}
-                    {groupItems.length === 0 && (
-                      <div className="pl-14 pr-4 py-2 text-xs text-slate-300 italic">
-                        ຍັງບໍ່ມີ item — ກົດ + ເພື່ອເພີ່ມ
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              {/* top-level groups (recursive) */}
+              {renderGroupRows(secTopGroups, sec.id!)}
 
-              {secGroups.length === 0 && secItems.length === 0 && (
+              {secTopGroups.length === 0 && secItems.length === 0 && (
                 <div className="px-4 py-3 text-xs text-slate-300 italic text-center">
                   Section ຫວ່າງ — ກົດ ikon ດ້ານຂວາຂອງ section ເພື່ອເພີ່ມ
                 </div>
@@ -533,12 +573,18 @@ export default function MenusPage() {
                 </div>
               )}
 
-              {/* Parent group selector (for item only) */}
-              {currentType === "item" && form.sectionId && (() => {
-                const availableGroups = groups.filter(g => g.sectionId === form.sectionId);
+              {/* Parent group selector (for item OR group inside a section) */}
+              {(currentType === "item" || currentType === "group") && form.sectionId && (() => {
+                // หา groups ที่อยู่ใน section เดียวกัน และไม่ใช่ตัวเอง (เวลา edit)
+                const availableGroups = groups.filter(g =>
+                  g.sectionId === form.sectionId &&
+                  g.id !== editTarget?.id
+                );
                 return availableGroups.length > 0 ? (
                   <div>
-                    <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">ຢູ່ໃນ Dropdown Group (ຖ້າມີ)</label>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">
+                      {currentType === "item" ? "ຢູ່ໃນ Dropdown Group (ຖ້າມີ)" : "ຢູ່ໃນ Group ແມ່ (ຖ້າຕ້ອງການຊ້ອນ)"}
+                    </label>
                     <div className="space-y-1.5">
                       <label className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all
                         ${!form.parentId ? "border-blue-400 bg-blue-50" : "border-slate-200 hover:border-slate-300"}`}>

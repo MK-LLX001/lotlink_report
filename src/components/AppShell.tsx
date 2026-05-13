@@ -20,13 +20,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  // ຫາໜ້າທໍາອິດທີ່ user ມີສິດ (static ກ່ອນ, ແລ້ວ dynamic ເຮຽງຕາມ sidebar)
+  // ຫາໜ້າທໍາອິດທີ່ user ມີສິດ
   const getFirstPermittedPage = (): string | null => {
     if (perm("page_dashboard")) return "/dashboard";
     if (perm("page_issues"))    return "/issues";
     if (perm("page_users"))     return "/admin/users";
     if (perm("user_manage"))    return "/admin/menus";
-    // ຮຽງ dynamic menus ຕາມ sidebar ຈິງ: section order → group order → item order
     const sectionOrder: Record<string, number> = {};
     const groupOrder:   Record<string, number> = {};
     menus.forEach(m => {
@@ -51,15 +50,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (loading) return;
 
-    // ຍັງບໍ່ login → ໄປ /login
     if (!user && pathname !== "/login") {
       router.replace("/login");
       return;
     }
 
-    // Login ແລ້ວ ຢູ່ /login → ລໍ menus ໂຫຼດກ່ອນ redirect ໄປຫາ dynamic menu
     if (user && pathname === "/login") {
-      // ຖ້າ user ມີ static permission → redirect ທັນທີ ບໍ່ຕ້ອງລໍ menus
       const hasStatic =
         perm("page_dashboard") || perm("page_issues") ||
         perm("page_users")     || perm("user_manage");
@@ -67,28 +63,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         router.replace(getFirstPermittedPage()!);
         return;
       }
-      // ລໍ menus ໂຫຼດ snapshot ກ່ອນ (menus.length === 0 ໃນ 1st render)
       if (menus.length === 0) return;
       const first = getFirstPermittedPage();
       router.replace(first ?? "/login");
       return;
     }
 
-    // ຢູ່ໜ້າທີ່ຕ້ອງການ permission (static) — ຖ້າບໍ່ມີສິດ → redirect
     if (user && pathname in PAGE_PERMS && !perm(PAGE_PERMS[pathname])) {
       const first = getFirstPermittedPage();
       if (first && first !== pathname) {
         router.replace(first);
       }
-      // ຖ້າ first = null (ບໍ່ມີສິດຫຍັງ) → ຄ້າງຢູ່ ແລ້ວ render "ບໍ່ມີສິດ" ດ້ານລຸ່ມ
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, loading, pathname, menus]);
 
-  // ໜ້າ login ບໍ່ຕ້ອງ shell
   if (pathname === "/login") return <>{children}</>;
 
-  // loading
   if (loading) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
       <div className="flex flex-col items-center gap-3 text-slate-400">
@@ -100,12 +91,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   if (!user) return null;
 
-  // ໜ້ານີ້ຕ້ອງການ permission ແຕ່ user ບໍ່ມີສິດ → ສະແດງ "ບໍ່ມີສິດ" ແທນ children
   const requiredPerm = PAGE_PERMS[pathname];
   const noAccess = requiredPerm && !perm(requiredPerm);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
+    // ໃຊ້ items-stretch ແທນ overflow-hidden ເພື່ອໃຫ້ sidebar ຄວບຄຸມ width ຕົວເອງໄດ້
+    <div className="flex h-screen bg-slate-50 overflow-hidden">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <Navbar onMenuClick={() => setSidebarOpen(true)} />
