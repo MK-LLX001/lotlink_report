@@ -30,8 +30,14 @@ export interface DrawRow {
   FINAL_SCN_COM: number;
 }
 
+export interface BcelRefundRow {
+  TID: string | null;
+  TT_TXN: number | null;
+  REFUND_AMT: number | null;
+}
+
 // ─────────────────────────────────────────────
-// Shared style helpers
+// Shared style helpers (sz: 7 — for Month & Draw reports)
 // ─────────────────────────────────────────────
 const borderThin = {
   top:    { style: "thin" },
@@ -40,8 +46,8 @@ const borderThin = {
   right:  { style: "thin" },
 };
 
-const laoFont  = { name: "Phetsarath OT", sz: 7 };
-const numFont  = { name: "Arial Narrow",  sz: 7 };
+const laoFont = { name: "Phetsarath OT", sz: 7 };
+const numFont = { name: "Arial Narrow",  sz: 7 };
 
 const headerStyle = {
   fill: { fgColor: { rgb: "FFFF00" } },
@@ -88,13 +94,62 @@ const grandTotalCenterStyle = {
 };
 
 // ─────────────────────────────────────────────
+// BCEL-specific styles (sz: 9 base / sz: 11 heading)
+// ─────────────────────────────────────────────
+const BCEL_BASE_SZ    = 9;
+const BCEL_HEADING_SZ = 11;
+
+const bcelLaoFont = { name: "Phetsarath OT", sz: BCEL_BASE_SZ };
+const bcelNumFont = { name: "Arial Narrow",  sz: BCEL_BASE_SZ };
+
+const bcelHeaderStyle = {
+  fill: { fgColor: { rgb: "FFFF00" } },
+  font: { name: "Phetsarath OT", sz: BCEL_HEADING_SZ, bold: true },
+  alignment: { vertical: "center", horizontal: "center", wrapText: true },
+  border: borderThin,
+};
+
+const bcelCenterStyle = {
+  font: bcelLaoFont,
+  alignment: { horizontal: "center" },
+  border: borderThin,
+};
+
+const bcelTidStyle = {
+  font: { name: "Arial Narrow", sz: BCEL_BASE_SZ },
+  alignment: { horizontal: "left" },
+  border: borderThin,
+};
+
+const bcelNumStyle = {
+  font: bcelNumFont,
+  alignment: { horizontal: "right" },
+  numFmt: "#,##0",
+  border: borderThin,
+};
+
+const bcelGrandTotalCenterStyle = {
+  font: { name: "Phetsarath OT", sz: BCEL_HEADING_SZ, bold: true },
+  fill: { fgColor: { rgb: "FFFF00" } },
+  alignment: { horizontal: "center" },
+  border: borderThin,
+};
+
+const bcelGrandTotalNumStyle = {
+  font: { name: "Arial Narrow", sz: BCEL_HEADING_SZ, bold: true },
+  fill: { fgColor: { rgb: "FFFF00" } },
+  alignment: { horizontal: "right" },
+  numFmt: "#,##0",
+  border: borderThin,
+};
+
+// ─────────────────────────────────────────────
 // Filename helper
 // ─────────────────────────────────────────────
 function buildFilename(title: string): string {
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
   const dateStr = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
-  // Sanitise title for filesystem use
   const safe = title.replace(/[/\\?%*:|"<>]/g, "-").trim();
   return `${safe}_${dateStr}.xlsx`;
 }
@@ -114,7 +169,6 @@ export const exportMonthExcel = (
     { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 18 },
   ];
 
-  // ── Row 0: Title (merged across all columns) ──
   XLSX.utils.sheet_add_aoa(ws, [[title]], { origin: "A1" });
   ws["A1"].s = {
     font: { name: "Phetsarath OT", sz: 16, bold: true },
@@ -123,13 +177,11 @@ export const exportMonthExcel = (
   if (!ws["!merges"]) ws["!merges"] = [];
   ws["!merges"].push({ s: { r: 0, c: 0 }, e: { r: 0, c: NUM_COLS - 1 } });
 
-  // ── Row 1: Header labels ──
   const headers = [
     "ເດືອນ", "ຈໍານວນລາຍການ", "ຍອດບິນຫວຍ", "ຍອດຊໍາລະ", "ສ່ວນຕ່າງຍອດຊໍາລະ",
     "ສ່ວນຫຼຸດ SCN", "ສ່ວນຫຼຸດ 15%", "ສ່ວນຕ່າງສ່ວນຫຼຸດ", "Coupon SCN",
     "5% ທີ່ SCN \n ຈະໄດ້ຮັບ", "ຈໍານວນເງິນທີ່ \n SCN ຈະໄດ້ຮັບ",
   ];
-  // ── Row 2: Formula row ──
   const formulas = [
     "(A)", "(B)", "(C)", "(D)", "(E) = (C)-(D)", "(F)", "(G) = (C)*15%",
     "(H) = (F)-(G)", "(I) = (E)-(F)", "(J)", "(K) = (J)-(H)-(I)",
@@ -141,7 +193,6 @@ export const exportMonthExcel = (
     ws[XLSX.utils.encode_cell({ r: 2, c })].s = headerStyle;
   }
 
-  // ── Data rows ──
   let currentRow = 3;
   data.forEach((item) => {
     const rowData = [
@@ -156,7 +207,6 @@ export const exportMonthExcel = (
     currentRow++;
   });
 
-  // ── Grand Total ──
   const totals = data.reduce(
     (acc, curr) => ({
       TT_COUNT:            acc.TT_COUNT            + curr.TT_COUNT,
@@ -222,7 +272,6 @@ export const exportDrawidExcel = (
     { wch: 12 }, { wch: 18 },
   ];
 
-  // ── Row 0: Title (merged across all columns) ──
   XLSX.utils.sheet_add_aoa(ws, [[title]], { origin: "A1" });
   ws["A1"].s = {
     font: { name: "Phetsarath OT", sz: 16, bold: true },
@@ -231,14 +280,12 @@ export const exportDrawidExcel = (
   if (!ws["!merges"]) ws["!merges"] = [];
   ws["!merges"].push({ s: { r: 0, c: 0 }, e: { r: 0, c: NUM_COLS - 1 } });
 
-  // ── Row 1: Header labels ──
   const headers = [
     "ງວດ", "ວັນທີ", "ຈໍານວນລາຍການ", "ຍອດບິນຫວຍ", "ຍອດຊໍາລະ",
     "ສ່ວນຕ່າງຍອດຊໍາລະ", "ສ່ວນຫຼຸດ SCN", "ສ່ວນຫຼຸດ 15%",
     "ສ່ວນຕ່າງສ່ວນຫຼຸດ", "Coupon SCN", "5% SCN",
     "ຈໍານວນເງິນທີ່ \n SCN ຈະໄດ້ຮັບ",
   ];
-  // ── Row 2: Formula row ──
   const formulas = [
     "(A)", "(B)", "(C)", "(D)", "(E)", "(F) = (D)-(E)",
     "(G)", "(H) = (D)*15%", "(I) = (G)-(H)", "(J) = (F)-(G)",
@@ -251,11 +298,9 @@ export const exportDrawidExcel = (
     ws[XLSX.utils.encode_cell({ r: 2, c })].s = headerStyle;
   }
 
-  // ── Data rows grouped by month ──
   let currentRow = 3;
   const grouped = groupByMonth(data);
 
-  // ✅ FIX: ใช้ Array.from() เพื่อแก้ปัญหา MapIterator downlevelIteration
   for (const [, gRows] of Array.from(grouped.entries())) {
     for (const item of gRows) {
       const rowData = [
@@ -272,7 +317,6 @@ export const exportDrawidExcel = (
       currentRow++;
     }
 
-    // Sub-total row per month
     const sub = gRows.reduce(
       (acc, r) => ({
         TT_COUNT:            acc.TT_COUNT            + (r.TT_COUNT            ?? 0),
@@ -303,7 +347,6 @@ export const exportDrawidExcel = (
     currentRow++;
   }
 
-  // ── Grand Total row ──
   const grand = data.reduce(
     (acc, r) => ({
       TT_COUNT:            acc.TT_COUNT            + (r.TT_COUNT            ?? 0),
@@ -336,5 +379,96 @@ export const exportDrawidExcel = (
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "DrawID Report");
+  XLSX.writeFile(wb, buildFilename(title));
+};
+
+// ─────────────────────────────────────────────
+// exportBcelRefundExcel
+// ─────────────────────────────────────────────
+export const exportBcelRefundExcel = (
+  data: BcelRefundRow[],
+  filterSummary?: string,
+  title = "ລາຍງານ BCEL Refund ຫວຍ SCN"
+) => {
+  const NUM_COLS = 4;
+  const ws = XLSX.utils.aoa_to_sheet([]);
+
+  ws["!cols"] = [
+    { wch: 6 },   // ລ/ດ
+    { wch: 28 },  // TID
+    { wch: 18 },  // TT_TXN
+    { wch: 22 },  // REFUND_AMT
+  ];
+
+  // ── Row 0: Title ──
+  XLSX.utils.sheet_add_aoa(ws, [[title]], { origin: "A1" });
+  ws["A1"].s = {
+    font: { name: "Phetsarath OT", sz: 16, bold: true },
+    alignment: { vertical: "center", horizontal: "center", wrapText: false },
+  };
+  if (!ws["!merges"]) ws["!merges"] = [];
+  ws["!merges"].push({ s: { r: 0, c: 0 }, e: { r: 0, c: NUM_COLS - 1 } });
+
+  // ── Row 1: Filter summary (optional) ──
+  let headerRow = 1;
+  if (filterSummary) {
+    XLSX.utils.sheet_add_aoa(ws, [[`ຕົວກອງ: ${filterSummary}`]], { origin: "A2" });
+    ws["A2"].s = {
+      font: { name: "Phetsarath OT", sz: BCEL_BASE_SZ, italic: true, color: { rgb: "555555" } },
+      alignment: { horizontal: "left" },
+    };
+    ws["!merges"].push({ s: { r: 1, c: 0 }, e: { r: 1, c: NUM_COLS - 1 } });
+    headerRow = 2;
+  }
+
+  // ── Header row — sz 11, bold ──
+  const headers = ["ລ/ດ", "ງວດ", "ຈຳນວນ Transaction", "ຈຳນວນເງິນ Refund (ກີບ)"];
+  XLSX.utils.sheet_add_aoa(ws, [headers], { origin: `A${headerRow + 1}` });
+  for (let c = 0; c < NUM_COLS; c++) {
+    ws[XLSX.utils.encode_cell({ r: headerRow, c })].s = bcelHeaderStyle;
+  }
+
+  // ── Data rows — sz 9 ──
+  let currentRow = headerRow + 1;
+  data.forEach((item, idx) => {
+    const rowData = [
+      idx + 1,
+      item.TID ?? "",
+      item.TT_TXN ?? 0,
+      item.REFUND_AMT ?? 0,
+    ];
+    XLSX.utils.sheet_add_aoa(ws, [rowData], { origin: `A${currentRow + 1}` });
+    // ລ/ດ — Phetsarath OT 9, center
+    ws[XLSX.utils.encode_cell({ r: currentRow, c: 0 })].s = bcelCenterStyle;
+    // TID — Arial Narrow 9, left
+    ws[XLSX.utils.encode_cell({ r: currentRow, c: 1 })].s = bcelTidStyle;
+    // TT_TXN — Arial Narrow 9, right
+    ws[XLSX.utils.encode_cell({ r: currentRow, c: 2 })].s = bcelNumStyle;
+    // REFUND_AMT — Arial Narrow 9, right
+    ws[XLSX.utils.encode_cell({ r: currentRow, c: 3 })].s = bcelNumStyle;
+    currentRow++;
+  });
+
+  // ── Grand Total row — sz 11, bold ──
+  const grandTtTxn     = data.reduce((s, r) => s + (r.TT_TXN    ?? 0), 0);
+  const grandRefundAmt = data.reduce((s, r) => s + (r.REFUND_AMT ?? 0), 0);
+
+  const totalRow = ["", "ລວມທັງໝົດ", grandTtTxn, grandRefundAmt];
+  XLSX.utils.sheet_add_aoa(ws, [totalRow], { origin: `A${currentRow + 1}` });
+  ws[XLSX.utils.encode_cell({ r: currentRow, c: 0 })].s = bcelGrandTotalCenterStyle;
+  ws[XLSX.utils.encode_cell({ r: currentRow, c: 1 })].s = bcelGrandTotalCenterStyle;
+  ws[XLSX.utils.encode_cell({ r: currentRow, c: 2 })].s = bcelGrandTotalNumStyle;
+  ws[XLSX.utils.encode_cell({ r: currentRow, c: 3 })].s = bcelGrandTotalNumStyle;
+
+  ws["!pageSetup"] = {
+    orientation: "portrait",
+    paperSize: 9,
+    scale: 100,
+    fitToWidth: 1,
+    fitToHeight: 0,
+  };
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "BCEL Refund");
   XLSX.writeFile(wb, buildFilename(title));
 };

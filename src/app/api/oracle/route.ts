@@ -15,6 +15,8 @@ const MONTH_VIEW          = "ECOMMERCE2026.APP_V_SCN_LOTTO_SELL_MONTH";
 const REWARD_VIEW         = "ECOMMERCE2026.APP_V_SCN_REWARD";
 const REWARD_DRAWID_VIEW  = "ECOMMERCE2026.APP_V_SCN_REWARD_DRAWID";
 const REWARD_CHANNEL_VIEW = "ECOMMERCE2026.APP_V_SCN_REWARD_DRAWID_CHANEL";
+const BCEL_REFUND_VIEW    = "ECOMMERCE2026.APP_V_SCN_BCEL_REFUND";
+const REWARD_BCEL_STMT    = "ECOMMERCE2026.REWARD_BCEL_STMT";
 
 /** Column whitelist ກັນ SQL injection ສຳລັບ ORDER BY dynamic */
 const SELL_SORT_COLS = new Set([
@@ -23,6 +25,8 @@ const SELL_SORT_COLS = new Set([
   "SCN_COUPON_AMT", "DISCOUNT_15_PERCENT", "DIFF_PRO",
   "COM_5_PERCENT", "FINAL_SCN_COM",
 ]);
+
+const BCEL_SORT_COLS = new Set(["TID", "TT_TXN", "REFUND_AMT"]);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _db: any = null;
@@ -37,7 +41,13 @@ export async function GET(req: NextRequest) {
   const params  = new URL(req.url).searchParams;
   const viewKey = params.get("view") ?? "";
 
-  const validViews = ["sell", "sell_options", "drawid", "month", "roundids", "reward", "reward_drawid", "reward_channel"];
+  const validViews = [
+    "sell", "sell_options", "drawid", "month", "roundids",
+    "reward", "reward_drawid", "reward_channel",
+    "bcel_refund", "payout_drawid", "payout_users",
+    "bcel_reward_summary", "bcel_tax5_items",
+    "bank_reconciliation",
+  ];
   if (!validViews.includes(viewKey)) {
     return NextResponse.json(
       { error: `view ບໍ່ຖືກຕ້ອງ: "${viewKey}". ໃຊ້: ${validViews.join(" | ")}` },
@@ -108,7 +118,6 @@ export async function GET(req: NextRequest) {
       if (drawDate) { clauses.push("DRAW_DATE = :p_draw_date"); fb.p_draw_date = drawDate; }
       if (payBy)    { clauses.push("PAY_BY    = :p_pay_by");    fb.p_pay_by    = payBy; }
       if (q) {
-        // ໃຊ້ bind variable ດຽວ :p_q ຊ້ຳໄດ້ໃນ Oracle named binds
         clauses.push(
           "(LOTTO_BILL_NO LIKE :p_q OR OWNER LIKE :p_q OR PAY_BY LIKE :p_q OR DRAWID LIKE :p_q)",
         );
@@ -117,7 +126,6 @@ export async function GET(req: NextRequest) {
 
       const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
 
-      // Aggregate (COUNT + SUM) — ໃຊ້ filter binds ດຽວກັນ, ບໍ່ຕ້ອງ pagination
       const aggSql = `
         SELECT COUNT(*)                  AS TOTAL,
                SUM(BILL_AMT)             AS BILL_AMT,
@@ -131,13 +139,11 @@ export async function GET(req: NextRequest) {
                SUM(FINAL_SCN_COM)        AS FINAL_SCN_COM
         FROM ${SELL_VIEW} ${where}`;
 
-      // Data page — Oracle 12c+ OFFSET…FETCH syntax
       const dataSql = `
         SELECT * FROM ${SELL_VIEW} ${where}
         ORDER BY ${sortKey} ${sortDir}
         OFFSET :p_offset ROWS FETCH NEXT :p_limit ROWS ONLY`;
 
-      // Run both queries in parallel
       const [aggRes, dataRes] = await Promise.all([
         connection.execute(aggSql, fb, OPT_OBJ),
         connection.execute(dataSql, { ...fb, p_offset: offset, p_limit: pageSize }, OPT_OBJ),
@@ -307,6 +313,402 @@ export async function GET(req: NextRequest) {
         binds, OPT_OBJ,
       );
       return NextResponse.json({ rows: result.rows ?? [], view: REWARD_CHANNEL_VIEW });
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // bcel_refund — ລາຍງານ BCEL Refund (server-side filter + sort + pagination)
+    // ──────────────────────────────────────────────────────────────────────────
+    if (viewKey === "bcel_refund") {
+      const tid      = params.get("tid") ?? "";
+      const q        = params.get("q")   ?? "";
+      const pageNum  = Math.max(1, parseInt(params.get("page")     ?? "1",    10));
+      const pageSize = Math.min(9999, Math.max(10, parseInt(params.get("pageSize") ?? "100", 10)));
+      const rawSort  = params.get("sortKey") ?? "TID";
+      const sortKey  = BCEL_SORT_COLS.has(rawSort) ? rawSort : "TID";
+      const sortDir  = params.get("sortDir") === "desc" ? "DESC" : "ASC";
+      const offset   = (pageNum - 1) * pageSize;
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const fb: Record<string, any> = {};
+      const clauses: string[] = [];
+
+      if (tid) { clauses.push("TID = :p_tid");    fb.p_tid = tid; }
+      if (q)   { clauses.push("TID LIKE :p_q");   fb.p_q   = `%${q}%`; }
+
+      const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+
+      const aggSql = `
+        SELECT COUNT(*)         AS TOTAL,
+               SUM(TT_TXN)     AS TT_TXN,
+               SUM(REFUND_AMT) AS REFUND_AMT
+        FROM ${BCEL_REFUND_VIEW} ${where}`;
+
+      const dataSql = `
+        SELECT * FROM ${BCEL_REFUND_VIEW} ${where}
+        ORDER BY ${sortKey} ${sortDir}
+        OFFSET :p_offset ROWS FETCH NEXT :p_limit ROWS ONLY`;
+
+      const [aggRes, dataRes] = await Promise.all([
+        connection.execute(aggSql, fb, OPT_OBJ),
+        connection.execute(dataSql, { ...fb, p_offset: offset, p_limit: pageSize }, OPT_OBJ),
+      ]);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const agg: any = aggRes.rows?.[0] ?? {};
+      return NextResponse.json({
+        rows:  dataRes.rows ?? [],
+        total: Number(agg.TOTAL      ?? 0),
+        page:  pageNum,
+        pageSize,
+        totals: {
+          TT_TXN:     Number(agg.TT_TXN     ?? 0),
+          REFUND_AMT: Number(agg.REFUND_AMT ?? 0),
+        },
+      });
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // payout_users — distinct PAYOUT_USER list ສໍາລັບ dropdown ຍົກເວັ້ນ user
+    // ──────────────────────────────────────────────────────────────────────────
+    if (viewKey === "payout_users") {
+      const result = await connection.execute(
+        `SELECT DISTINCT PAYOUT_USER
+         FROM ECOMMERCE2026.LOTLINK_PAYOUT
+         WHERE PAYOUT_USER IS NOT NULL
+         ORDER BY PAYOUT_USER`,
+        {}, OPT_OBJ,
+      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const users: string[] = (result.rows ?? []).map((r: any) => String(r.PAYOUT_USER));
+      return NextResponse.json({ users });
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // payout_drawid — ສັງລວມ LOTLINK_PAYOUT ຕາມ DRAW_ID
+    // ──────────────────────────────────────────────────────────────────────────
+    if (viewKey === "payout_drawid") {
+      const from        = params.get("from")         ?? "";
+      const to          = params.get("to")           ?? "";
+      const dateFrom    = params.get("date_from")    ?? "";
+      const dateTo      = params.get("date_to")      ?? "";
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const binds: Record<string, any> = {};
+      const clauses: string[] = [];
+
+      // ຍົກເວັ້ນ users ຕາມ param (comma-separated), ໃຊ້ NOT IN bind variables
+      const excludeUserRaw = params.get("exclude_user") ?? "";
+      const excludeList = excludeUserRaw
+        ? excludeUserRaw.split(",").map(s => s.trim()).filter(Boolean)
+        : [];
+      if (excludeList.length > 0) {
+        clauses.push(`UPPER(lr.PAYOUT_USER) NOT IN (${excludeList.map((_, i) => `UPPER(:p_excl_${i})`).join(", ")})`);
+        excludeList.forEach((u, i) => { binds[`p_excl_${i}`] = u; });
+      }
+
+      if (from)     { clauses.push("lr.DRAW_ID     >= :p_from");      binds.p_from      = from; }
+      if (to)       { clauses.push("lr.DRAW_ID     <= :p_to");        binds.p_to        = to; }
+      if (dateFrom) { clauses.push("lr.PAYOUT_DATE >= TO_DATE(:p_date_from, 'YYYY-MM-DD')");     binds.p_date_from = dateFrom; }
+      if (dateTo)   { clauses.push("lr.PAYOUT_DATE <  TO_DATE(:p_date_to,   'YYYY-MM-DD') + 1"); binds.p_date_to   = dateTo; }
+
+      const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
+
+      // Query 1: ສັງລວມຕາມ DRAW_ID (ສໍາລັບ table ຫຼັກ)
+      const sqlMain = `
+        SELECT lr.DRAW_ID,
+               SUM(lr.PAYOUT_REWARD_AMT) AS TOTAL_AMOUNT,
+               COUNT(*)                  AS TOTAL_COUNT
+        FROM ECOMMERCE2026.LOTLINK_PAYOUT lr
+        ${where}
+        GROUP BY lr.DRAW_ID
+        ORDER BY lr.DRAW_ID ASC`;
+
+      // Query 2: ດຶງ PAYOUT_USER + PAYOUT_DATE ທີ່ unique (ສໍາລັບ block ທາງລຸ່ມ)
+      const sqlPayers = `
+        SELECT DISTINCT
+               lr.PAYOUT_USER,
+               TO_CHAR(lr.PAYOUT_DATE, 'DD/MM/YYYY') AS PAYOUT_DATE
+        FROM ECOMMERCE2026.LOTLINK_PAYOUT lr
+        ${where}
+        ORDER BY lr.PAYOUT_USER`;
+
+      const [mainRes, payersRes] = await Promise.all([
+        connection.execute(sqlMain,   binds, OPT_OBJ),
+        connection.execute(sqlPayers, binds, OPT_OBJ),
+      ]);
+
+      return NextResponse.json({
+        rows:   mainRes.rows   ?? [],
+        payers: payersRes.rows ?? [],
+        view: "LOTLINK_PAYOUT",
+      });
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // bcel_reward_summary — ສັງລວມລາງວັນ BCEL ຕາມງວດ (REWARD_BCEL_STMT)
+    // ອາກອນ5% = SUM(BANK_CR) WHERE TXN_TYPE='TAX LOTTERY PRIZE' — query ແຍກ
+    // ──────────────────────────────────────────────────────────────────────────
+    if (viewKey === "bcel_reward_summary") {
+      const dateFrom = params.get("date_from") ?? "";
+      const dateTo   = params.get("date_to")   ?? "";
+
+      const conditions: string[] = [];
+      const binds: Record<string, string> = {};
+
+      if (dateFrom) {
+        conditions.push("BANK_DATE >= TO_DATE(:dateFrom, 'YYYY-MM-DD')");
+        binds.dateFrom = dateFrom;
+      }
+      if (dateTo) {
+        const dt = new Date(dateTo);
+        dt.setDate(dt.getDate() + 1);
+        conditions.push("BANK_DATE < TO_DATE(:dateTo, 'YYYY-MM-DD')");
+        binds.dateTo = dt.toISOString().slice(0, 10);
+      }
+
+      const whereClause = conditions.length > 0
+        ? `WHERE ${conditions.join(" AND ")}`
+        : "";
+
+      // Query 1: ROLLUP ຕາມ DRAWID (ບໍ່ລວມ TAX ໃນ ROLLUP)
+      const sqlMain = `
+        SELECT
+          t."ງວດ",
+          t."ລາງວັນ",
+          t."ໂຊກຊ້ອນໂຊກ",
+          t."ຄ່າທຳນຽມ",
+          t."ໂຊກ Spin",
+          t."ຄ່າທຳນຽມ_SPIN",
+          t."ລາງວັນ SCN",
+          t."ໂຊກຊ້ອນໂຊກ SCN",
+          t."ຄ່າທຳນຽມ SCN"
+        FROM (
+          SELECT
+            CASE GROUPING(DRAWID)
+              WHEN 1 THEN 'ລວມທັງໝົດ'
+              ELSE TO_CHAR(DRAWID)
+            END AS "ງວດ",
+            TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'LOTTERY PRIZE'      THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "ລາງວັນ",
+            TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'SPLUSPRO'           THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "ໂຊກຊ້ອນໂຊກ",
+            TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'FEE_LOTTERY PRIZE'  THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "ຄ່າທຳນຽມ",
+            TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'SPLUSPRO_SPIN'      THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "ໂຊກ Spin",
+            TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'FEE_SPLUSPRO_SPIN'  THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "ຄ່າທຳນຽມ_SPIN",
+            TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'SCNS LOTTERY PRIZE'       THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "ລາງວັນ SCN",
+            TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'SPLUSPRO_SCN_BONUS' THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "ໂຊກຊ້ອນໂຊກ SCN",
+            TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'FEE_SCNS LOTTERY PRIZE'   THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "ຄ່າທຳນຽມ SCN"
+          FROM ${REWARD_BCEL_STMT}
+          ${whereClause}
+          GROUP BY ROLLUP(DRAWID)
+          ORDER BY GROUPING(DRAWID), DRAWID
+        ) t
+      `;
+
+      // Query 2: SUM(BANK_CR) WHERE TXN_TYPE='TAX LOTTERY PRIZE' — ບໍ່ GROUP BY
+      const taxConditions = ["TXN_TYPE = 'TAX LOTTERY PRIZE'", ...conditions];
+      const sqlTax = `
+        SELECT TO_CHAR(SUM(BANK_CR), 'FM999,999,999,990.00') AS TAX_TOTAL
+        FROM ${REWARD_BCEL_STMT}
+        WHERE ${taxConditions.join(" AND ")}
+      `;
+
+      const [mainRes, taxRes] = await Promise.all([
+        connection.execute(sqlMain, binds, OPT_OBJ),
+        connection.execute(sqlTax,  binds, OPT_OBJ),
+      ]);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const taxTotal: string = (taxRes.rows?.[0] as any)?.TAX_TOTAL ?? "0.00";
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rows = (mainRes.rows ?? []).map((r: any) => ({
+        "ງວດ":             r["ງວດ"]             ?? "",
+        "ລາງວັນ":          r["ລາງວັນ"]          ?? "0.00",
+        "ໂຊກຊ້ອນໂຊກ":      r["ໂຊກຊ້ອນໂຊກ"]      ?? "0.00",
+        "ຄ່າທຳນຽມ":        r["ຄ່າທຳນຽມ"]        ?? "0.00",
+        "ໂຊກ Spin":         r["ໂຊກ Spin"]         ?? "0.00",
+        "ຄ່າທຳນຽມ_SPIN":   r["ຄ່າທຳນຽມ_SPIN"]   ?? "0.00",
+        "ລາງວັນ SCN":       r["ລາງວັນ SCN"]       ?? "0.00",
+        "ໂຊກຊ້ອນໂຊກ SCN":  r["ໂຊກຊ້ອນໂຊກ SCN"]  ?? "0.00",
+        "ຄ່າທຳນຽມ SCN":    r["ຄ່າທຳນຽມ SCN"]    ?? "0.00",
+        "ອາກອນ5%":          taxTotal,
+      }));
+
+      return NextResponse.json({ rows, taxTotal });
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // bcel_tax5_items — ດຶງລາຍການ TAX LOTTERY PRIZE individual ທຸກ transaction
+    // ໃຊ້ສຳລັບ col K ໃນ Excel export (ໃສ່ 1 ລາຍການ ຕໍ່ 1 ແຖວ)
+    // ──────────────────────────────────────────────────────────────────────────
+    if (viewKey === "bcel_tax5_items") {
+      const dateFrom = params.get("date_from") ?? "";
+      const dateTo   = params.get("date_to")   ?? "";
+
+      const conditions: string[] = ["TXN_TYPE = 'TAX LOTTERY PRIZE'"];
+      const binds: Record<string, string> = {};
+
+      if (dateFrom) {
+        conditions.push("BANK_DATE >= TO_DATE(:dateFrom, 'YYYY-MM-DD')");
+        binds.dateFrom = dateFrom;
+      }
+      if (dateTo) {
+        const dt = new Date(dateTo);
+        dt.setDate(dt.getDate() + 1);
+        conditions.push("BANK_DATE < TO_DATE(:dateTo, 'YYYY-MM-DD')");
+        binds.dateTo = dt.toISOString().slice(0, 10);
+      }
+
+      const sql = `
+        SELECT TO_CHAR(BANK_DATE, 'YYYY-MM-DD') AS BANK_DATE,
+               TO_CHAR(DRAWID)                  AS DRAWID,
+               BANK_CR
+        FROM ${REWARD_BCEL_STMT}
+        WHERE ${conditions.join(" AND ")}
+        ORDER BY BANK_DATE ASC, BANK_CR DESC
+      `;
+
+      const result = await connection.execute(sql, binds, OPT_OBJ);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rows = (result.rows ?? []).map((r: any) => ({
+        BANK_DATE: r.BANK_DATE ?? "",
+        DRAWID:    r.DRAWID    ?? "",
+        BANK_CR:   Number(r.BANK_CR ?? 0),
+      }));
+      return NextResponse.json({ rows });
+    }
+
+
+    
+
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // bank_reconciliation — ການກະທົບຍອດ BCEL (ບັນຊີຈ່າຍ) ຕາມວັນທີ
+    // ──────────────────────────────────────────────────────────────────────────
+    if (viewKey === "bank_reconciliation") {
+      const dateFrom = params.get("date_from") ?? "";
+      const dateTo   = params.get("date_to")   ?? "";
+
+      const conditions: string[] = [];
+      const binds: Record<string, string> = {};
+
+      if (dateFrom) {
+        conditions.push("BANK_DATE >= TO_DATE(:dateFrom, 'YYYY-MM-DD')");
+        binds.dateFrom = dateFrom;
+      }
+      if (dateTo) {
+        const dt = new Date(dateTo);
+        dt.setDate(dt.getDate() + 1);
+        conditions.push("BANK_DATE < TO_DATE(:dateTo, 'YYYY-MM-DD')");
+        binds.dateTo = dt.toISOString().slice(0, 10);
+      }
+
+      const mainWhere = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+      const knownTypes = `'LOTTERY PRIZE','SPLUSPRO','SCNS LOTTERY PRIZE','SPLUSPRO_SPIN','TAX LOTTERY PRIZE','FEE_LOTTERY PRIZE','FEE_SCNS LOTTERY PRIZE','FEE_SPLUSPRO_SPIN','TRANSFER BY','FTR','SOKXAY PLUS COMMISSION','CHARGE FEE','BCEL E-COMMERCE MONTHLY FEE','FTR_FREE'`;
+
+      const sqlMain = `
+        SELECT
+          TO_CHAR(BANK_DATE, 'YYYY-MM-DD') AS "ວັນທີ",
+          TO_CHAR(
+              SUM(CASE WHEN TXN_TYPE = 'LOTTERY PRIZE'          THEN BANK_DR ELSE 0 END)
+            + SUM(CASE WHEN TXN_TYPE = 'SPLUSPRO'               THEN BANK_DR ELSE 0 END)
+            + SUM(CASE WHEN TXN_TYPE = 'SCNS LOTTERY PRIZE'     THEN BANK_DR ELSE 0 END)
+            + SUM(CASE WHEN TXN_TYPE = 'SPLUSPRO_SPIN'          THEN BANK_DR ELSE 0 END)
+            + SUM(CASE WHEN TXN_TYPE = 'FEE_LOTTERY PRIZE'      THEN BANK_DR ELSE 0 END)
+            + SUM(CASE WHEN TXN_TYPE = 'FEE_SCNS LOTTERY PRIZE' THEN BANK_DR ELSE 0 END)
+            + SUM(CASE WHEN TXN_TYPE = 'FEE_SPLUSPRO_SPIN'      THEN BANK_DR ELSE 0 END)
+            + SUM(CASE WHEN TXN_TYPE IN ('TRANSFER BY','FTR')   THEN BANK_DR ELSE 0 END)
+            + SUM(CASE WHEN TXN_TYPE IN ('SOKXAY PLUS COMMISSION','CHARGE FEE','BCEL E-COMMERCE MONTHLY FEE','FTR_FREE') THEN BANK_DR ELSE 0 END)
+          , 'FM999,999,999,990.00') AS "ລວມໜີ້",
+          TO_CHAR(
+              SUM(CASE WHEN TXN_TYPE = 'TAX LOTTERY PRIZE'    THEN BANK_CR ELSE 0 END)
+            + SUM(CASE WHEN TXN_TYPE IN ('TRANSFER BY','FTR') THEN BANK_CR ELSE 0 END)
+          , 'FM999,999,999,990.00') AS "ລວມມີ",
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'LOTTERY PRIZE'          THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "ລາງວັນ Sokxay",
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'SPLUSPRO'               THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "ໂຊກຊ້ອນໂຊກ",
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'FEE_LOTTERY PRIZE'      THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "ຄ່າທໍານຽມໂອນລາງວັນຫວຍ ໂຊກໄຊ",
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'SPLUSPRO_SPIN'          THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "ວົງລໍ້ໂຊກໄຊ",
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'FEE_SPLUSPRO_SPIN'      THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "ຄ່າທໍານຽມໂອນລາງວັນ ວົງລໍ້ໂຊກໄຊ",
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'TAX LOTTERY PRIZE'      THEN BANK_CR ELSE 0 END), 'FM999,999,999,990.00') AS "ອາກອນລາງວັນ ໂຊກໄຊ",
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'SCNS LOTTERY PRIZE'     THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "ລາງວັນ SCN",
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'FEE_SCNS LOTTERY PRIZE' THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "ຄ່າທໍານຽມໂອນລາງວັນຫວຍ SCN",
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE IN ('TRANSFER BY','FTR')   THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "ການໂອນເງິນ - ໜີ້",
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE IN ('TRANSFER BY','FTR')   THEN BANK_CR ELSE 0 END), 'FM999,999,999,990.00') AS "ການໂອນເງິນ - ມີ",
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE IN ('SOKXAY PLUS COMMISSION','CHARGE FEE','BCEL E-COMMERCE MONTHLY FEE','FTR_FREE') THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "Bank Fee",
+          TO_CHAR(
+            (
+                SUM(CASE WHEN TXN_TYPE = 'LOTTERY PRIZE'          THEN BANK_DR ELSE 0 END)
+              + SUM(CASE WHEN TXN_TYPE = 'SPLUSPRO'               THEN BANK_DR ELSE 0 END)
+              + SUM(CASE WHEN TXN_TYPE = 'SCNS LOTTERY PRIZE'     THEN BANK_DR ELSE 0 END)
+              + SUM(CASE WHEN TXN_TYPE = 'SPLUSPRO_SPIN'          THEN BANK_DR ELSE 0 END)
+              + SUM(CASE WHEN TXN_TYPE = 'FEE_LOTTERY PRIZE'      THEN BANK_DR ELSE 0 END)
+              + SUM(CASE WHEN TXN_TYPE = 'FEE_SCNS LOTTERY PRIZE' THEN BANK_DR ELSE 0 END)
+              + SUM(CASE WHEN TXN_TYPE = 'FEE_SPLUSPRO_SPIN'      THEN BANK_DR ELSE 0 END)
+              + SUM(CASE WHEN TXN_TYPE IN ('TRANSFER BY','FTR')   THEN BANK_DR ELSE 0 END)
+              + SUM(CASE WHEN TXN_TYPE IN ('SOKXAY PLUS COMMISSION','CHARGE FEE','BCEL E-COMMERCE MONTHLY FEE','FTR_FREE') THEN BANK_DR ELSE 0 END)
+              - SUM(CASE WHEN TXN_TYPE = 'TAX LOTTERY PRIZE'      THEN BANK_CR ELSE 0 END)
+              - SUM(CASE WHEN TXN_TYPE IN ('TRANSFER BY','FTR')   THEN BANK_CR ELSE 0 END)
+            ) - (SUM(BANK_DR) - SUM(BANK_CR))
+          , 'FM999,999,999,990.00') AS "ສ່ວນຕ່າງ"
+        FROM ECOMMERCE2026.REWARD_BCEL_STMT
+        ${mainWhere}
+        GROUP BY ROLLUP(BANK_DATE)
+        ORDER BY GROUPING(BANK_DATE), BANK_DATE
+      `;
+
+      const othersWhere = conditions.length > 0 ? `AND ${conditions.join(" AND ")}` : "";
+      const sqlOthers = `
+        SELECT
+          TO_CHAR(BANK_DATE, 'YYYY-MM-DD') AS BD,
+          TXN_TYPE,
+          CASE
+            WHEN SUM(BANK_DR) > 0 AND SUM(BANK_CR) = 0 THEN 'Dr'
+            WHEN SUM(BANK_CR) > 0 AND SUM(BANK_DR) = 0 THEN 'Cr'
+            ELSE 'Dr/Cr'
+          END AS DIRECTION,
+          ABS(SUM(BANK_DR) - SUM(BANK_CR)) AS AMT
+        FROM ECOMMERCE2026.REWARD_BCEL_STMT
+        WHERE TXN_TYPE NOT IN (${knownTypes})
+          ${othersWhere}
+        GROUP BY BANK_DATE, TXN_TYPE
+        ORDER BY BANK_DATE, TXN_TYPE
+      `;
+
+      const [mainRes, othersRes] = await Promise.all([
+        connection.execute(sqlMain,   binds, OPT_OBJ),
+        connection.execute(sqlOthers, binds, OPT_OBJ),
+      ]);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const othersMap: Record<string, string> = {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (othersRes.rows ?? []).forEach((o: any) => {
+        const bd  = String(o.BD ?? "");
+        const txt = `${o.TXN_TYPE} (${o.DIRECTION}): ${Number(o.AMT).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
+        othersMap[bd] = othersMap[bd] ? `${othersMap[bd]} | ${txt}` : txt;
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rows = (mainRes.rows ?? []).map((r: any) => ({
+        "ວັນທີ":                           r["ວັນທີ"]                              ?? null,
+        "ລວມໜີ້":                          r["ລວມໜີ້"]                             ?? "0.00",
+        "ລວມມີ":                           r["ລວມມີ"]                              ?? "0.00",
+        "ລາງວັນ Sokxay":                   r["ລາງວັນ Sokxay"]                      ?? "0.00",
+        "ໂຊກຊ້ອນໂຊກ":                      r["ໂຊກຊ້ອນໂຊກ"]                         ?? "0.00",
+        "ຄ່າທໍານຽມໂອນລາງວັນຫວຍ ໂຊກໄຊ":    r["ຄ່າທໍານຽມໂອນລາງວັນຫວຍ ໂຊກໄຊ"]       ?? "0.00",
+        "ວົງລໍ້ໂຊກໄຊ":                      r["ວົງລໍ້ໂຊກໄຊ"]                         ?? "0.00",
+        "ຄ່າທໍານຽມໂອນລາງວັນ ວົງລໍ້ໂຊກໄຊ": r["ຄ່າທໍານຽມໂອນລາງວັນ ວົງລໍ້ໂຊກໄຊ"]    ?? "0.00",
+        "ອາກອນລາງວັນ ໂຊກໄຊ":               r["ອາກອນລາງວັນ ໂຊກໄຊ"]                  ?? "0.00",
+        "ລາງວັນ SCN":                       r["ລາງວັນ SCN"]                          ?? "0.00",
+        "ຄ່າທໍານຽມໂອນລາງວັນຫວຍ SCN":       r["ຄ່າທໍານຽມໂອນລາງວັນຫວຍ SCN"]          ?? "0.00",
+        "ການໂອນເງິນ - ໜີ້":                 r["ການໂອນເງິນ - ໜີ້"]                    ?? "0.00",
+        "ການໂອນເງິນ - ມີ":                  r["ການໂອນເງິນ - ມີ"]                     ?? "0.00",
+        "Bank Fee":                         r["Bank Fee"]                            ?? "0.00",
+        "ອື່ນໆ":                            r["ວັນທີ"] ? (othersMap[r["ວັນທີ"]] ?? null) : null,
+        "ສ່ວນຕ່າງ":                         r["ສ່ວນຕ່າງ"]                            ?? "0.00",
+      }));
+
+      return NextResponse.json({ rows });
     }
 
   } catch (err: unknown) {

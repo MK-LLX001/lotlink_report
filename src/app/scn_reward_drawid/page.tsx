@@ -500,10 +500,10 @@ export default function ScnRewardDrawidPage() {
         {/* Signature */}
         {hasSearched && filtered.length > 0 && (
           <div className="print-signature hidden">
-            <div className="sig-box"><div className="sig-line">ອຳນວຍການ ບໍລິສັດ <br /> Sokxay One Plus E-commerce</div><div className="sig-role">( .............................................. )</div></div>
-            <div className="sig-box"><div className="sig-line">ຜູ້ຈັດການບັນຊີ <br /> ບໍລິສັດ ຫວຍ</div><div className="sig-role">( .............................................. )</div></div>
-            <div className="sig-box"><div className="sig-line">IT ບໍລິສັດ <br /> Sokxay One Plus E-commerce</div><div className="sig-role">( .............................................. )</div></div>
-            <div className="sig-box"><div className="sig-line">ຜູ້ສັງລວມ</div><div className="sig-role">( .............................................. )</div></div>
+            <div className="sig-box"><div className="sig-line">ອຳນວຍການ ບໍລິສັດ <br /> Sokxay One Plus E-commerce</div><div className="sig-role"></div></div>
+            <div className="sig-box"><div className="sig-line">ຜູ້ຈັດການບັນຊີ <br /> ບໍລິສັດ ຫວຍ</div><div className="sig-role"></div></div>
+            <div className="sig-box"><div className="sig-line">IT ບໍລິສັດ <br /> Sokxay One Plus E-commerce</div><div className="sig-role"></div></div>
+            <div className="sig-box"><div className="sig-line">ຜູ້ສັງລວມ</div><div className="sig-role"></div></div>
           </div>
         )}
       </div>

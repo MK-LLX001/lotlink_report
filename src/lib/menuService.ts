@@ -93,24 +93,35 @@ export function buildSectionTree(
   // sections
   const sections = active.filter(m => m.type === "section").sort((a, b) => a.order - b.order);
 
-  return sections.map(sec => {
-    // top-level items/groups in this section
-    const topLevel = active
-      .filter(m => m.sectionId === sec.id && m.parentId === null && m.type !== "section")
-      .sort((a, b) => a.order - b.order);
+  // Recursive node builder — รองรับ group ซ้อน group ได้ทุกระดับ
+  const buildNode = (m: AppMenu): MenuNode | null => {
+    if (m.type === "item") {
+      if (!canSee(m.permKey)) return null;
+      return { menu: m, children: [] };
+    }
 
-    const buildNode = (m: AppMenu): MenuNode | null => {
-      if (m.type === "item" && !canSee(m.permKey)) return null;
+    if (m.type === "group") {
+      if (!canSee(m.permKey)) return null;
+      // หา children ทุกชนิด (item หรือ group ลูก) ที่ parentId ตรงกัน
       const children = active
-        .filter(c => c.parentId === m.id && c.type === "item")
+        .filter(c => c.parentId === m.id)
         .sort((a, b) => a.order - b.order)
-        .map(c => ({ menu: c, children: [] }))
-        .filter(c => canSee(c.menu.permKey));
+        .map(c => buildNode(c))
+        .filter(Boolean) as MenuNode[];
 
-      // group: show only if has visible children
-      if (m.type === "group" && children.length === 0) return null;
+      // group: แสดงเฉพาะตอนมี children ที่ visible
+      if (children.length === 0) return null;
       return { menu: m, children };
-    };
+    }
+
+    return null;
+  };
+
+  return sections.map(sec => {
+    // top-level items/groups in this section (parentId === null)
+    const topLevel = active
+      .filter(m => m.sectionId === sec.id && (m.parentId === null || m.parentId === "") && m.type !== "section")
+      .sort((a, b) => a.order - b.order);
 
     const nodes = topLevel.map(buildNode).filter(Boolean) as MenuNode[];
 

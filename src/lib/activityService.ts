@@ -23,7 +23,12 @@ export type ActivityAction =
   | "lotto_export"
   | "lotto_print"
   | "reward_search"
-  | "reward_print";
+  | "reward_print"
+  | "bcel_refund_search"
+  | "bcel_refund_export"
+  | "bcel_refund_print"
+  | "payout_drawid_search"
+  | "payout_drawid_print";
 
 export const ACTION_LABELS: Record<ActivityAction, string> = {
   login:        "ເຂົ້າສູ່ລະບົບ",
@@ -44,6 +49,11 @@ export const ACTION_LABELS: Record<ActivityAction, string> = {
   lotto_print:   "ພິມລາຍງານ Lotto",
   reward_search: "ຄົ້ນຫາ Reward",
   reward_print:  "ພິມລາຍງານ Reward",
+  bcel_refund_search: "ຄົ້ນຫາ BCEL Refund",
+  bcel_refund_export: "Export BCEL Refund Excel",
+  bcel_refund_print:  "ພິມລາຍງານ BCEL Refund",
+  payout_drawid_search: "ຄົ້ນຫາ Payout",
+  payout_drawid_print:  "ພິມລາຍງານ Payout",
 };
 
 export const ACTION_COLORS: Record<ActivityAction, string> = {
@@ -65,6 +75,11 @@ export const ACTION_COLORS: Record<ActivityAction, string> = {
   lotto_print:   "bg-pink-100 text-pink-700",
   reward_search: "bg-amber-100 text-amber-700",
   reward_print:  "bg-orange-100 text-orange-700",
+  bcel_refund_search: "bg-blue-100 text-blue-700",
+  bcel_refund_export: "bg-emerald-100 text-emerald-700",
+  bcel_refund_print:  "bg-slate-100 text-slate-700",
+  payout_drawid_search: "bg-blue-100 text-blue-700",
+  payout_drawid_print:  "bg-indigo-100 text-indigo-700",
 };
 
 export interface ActivityLog {
