@@ -1,6 +1,6 @@
 // src/app/api/oracle/route.ts
 import { NextRequest, NextResponse } from "next/server";
-
+import { Reconciliation_repo } from "@/app/api/oracle/repo/LDB_recon_repo";
 const ORA_CONFIG = {
   host:     process.env.ORACLE_HOST     ?? "172.22.7.41",
   port:     Number(process.env.ORACLE_PORT ?? "1521"),
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
     "reward", "reward_drawid", "reward_channel",
     "bcel_refund", "payout_drawid", "payout_users",
     "bcel_reward_summary", "bcel_tax5_items",
-    "bank_reconciliation",
+    "bank_reconciliation","LDB_RECONCILIATION",
   ];
   if (!validViews.includes(viewKey)) {
     return NextResponse.json(
@@ -711,6 +711,21 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ rows });
     }
 
+    //=──────────────────────────────────────────────────────────────────────────
+    // ldb_reconciliation — ການກະທົບຍອດ BCEL (ບັນຊີເງິນເຂົ້າ) ຕາມວັນທີ
+    //=──────────────────────────────────────────────────────────────────────────
+  
+     if (viewKey === "LDB_RECONCILIATION") {
+        const rows = await Reconciliation_repo(
+          params.get("date_from") ?? undefined,
+          params.get("date_to")   ?? undefined,
+          params.get("account") ?? undefined,
+        );
+        return NextResponse.json({ data: rows });
+      }
+
+    
+
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[Oracle API]", msg);
@@ -718,4 +733,5 @@ export async function GET(req: NextRequest) {
   } finally {
     if (connection) await connection.close().catch(() => {});
   }
+
 }

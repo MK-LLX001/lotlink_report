@@ -1,0 +1,11 @@
+### valid request
+GET http://localhost:3000/api/oracle?view=LDB_RECONCILIATION&date_from=2026-05-01&date_to=2026-05-04&account=0302000010005944
+
+### date_from > date_to (ต้อง 400)
+GET http://localhost:3000/api/oracle/route.lg?view=LDB_RECONCILIATION&date_from=2025-12-01&date_to=2025-01-01
+
+### missing view (ต้อง 400)
+GET http://localhost:3000/api/oracle/route.lg?date_from=2025-01-01&date_to=2025-01-31
+
+### wrong date format (ต้อง 400)
+GET http://localhost:3000/api/oracle/route.lg?view=LDB_RECONCILIATION&date_from=01-01-2025&date_to=31-01-2025

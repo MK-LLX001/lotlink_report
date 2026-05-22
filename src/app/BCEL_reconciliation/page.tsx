@@ -250,6 +250,7 @@ export default function BcelBankReconciliationPage() {
       setLoading(false);
     }
   };
+  
 
   const handleApply = () => {
     setAppliedFrom(dateFrom);
