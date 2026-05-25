@@ -207,7 +207,7 @@ export default function MenusPage() {
     };
     const descendants = collectDescendants(deleteTarget.id);
     // deduplicate
-    const uniqueIds = [...new Set(descendants.map(d => d.id).filter(Boolean))] as string[];
+    const uniqueIds = Array.from(new Set(descendants.map(d => d.id).filter(Boolean))) as string[];
     try {
       await Promise.all(uniqueIds.map(id => deleteMenu(id)));
       await deleteMenu(deleteTarget.id);

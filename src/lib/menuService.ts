@@ -101,15 +101,16 @@ export function buildSectionTree(
     }
 
     if (m.type === "group") {
-      if (!canSee(m.permKey)) return null;
-      // หา children ทุกชนิด (item หรือ group ลูก) ที่ parentId ตรงกัน
+      // NOTE: ບໍ່ check canSee(m.permKey) ສໍາລັບ group ເພາະ group permKey
+      // ບໍ່ຖືກ assign ໃຫ້ user ໃນໜ້າ admin/users — ໃຊ້ children visibility ເປັນ gate ດຽວ
+      // ຖ້າ item ລູກໃດໜຶ່ງ visible, group ຈະ show ໂດຍອັດຕະໂນມັດ
       const children = active
         .filter(c => c.parentId === m.id)
         .sort((a, b) => a.order - b.order)
         .map(c => buildNode(c))
         .filter(Boolean) as MenuNode[];
 
-      // group: แสดงเฉพาะตอนมี children ที่ visible
+      // group: ສະແດງສະເພາະຕອນມີ children ທີ່ visible
       if (children.length === 0) return null;
       return { menu: m, children };
     }

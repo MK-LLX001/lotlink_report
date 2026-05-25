@@ -17,6 +17,10 @@ const REWARD_DRAWID_VIEW  = "ECOMMERCE2026.APP_V_SCN_REWARD_DRAWID";
 const REWARD_CHANNEL_VIEW = "ECOMMERCE2026.APP_V_SCN_REWARD_DRAWID_CHANEL";
 const BCEL_REFUND_VIEW    = "ECOMMERCE2026.APP_V_SCN_BCEL_REFUND";
 const REWARD_BCEL_STMT    = "ECOMMERCE2026.REWARD_BCEL_STMT";
+const JDB_STMT            = "ECOMMERCE2026.JDB_STMT";
+const JDB_ACCT            = "02920020000003191";
+const LDB_STMT            = "ECOMMERCE2026.LDB_STMT";
+const LDB_ACCT            = "0302000010005221";
 
 /** Column whitelist ກັນ SQL injection ສຳລັບ ORDER BY dynamic */
 const SELL_SORT_COLS = new Set([
@@ -47,6 +51,12 @@ export async function GET(req: NextRequest) {
     "bcel_refund", "payout_drawid", "payout_users",
     "bcel_reward_summary", "bcel_tax5_items",
     "bank_reconciliation",
+    "jdb_reward_summary",        // ✅ ສັງລວມລາງວັນ JDB ຕາມງວດ
+    "jdb_tax5_items",            // ✅ ອາກອນ 5% (SPLUS_PRICE_TAX)
+    "jdb_other_items",           // ✅ TXN_TYPE ນອກເໜືອ known types
+    "jdb_bank_reconciliation",   // ✅ Bank Reconciliation JDB (ທັງ 2 ບັນຊີ)
+    "ldb_reward_summary",        // ✅ ສັງລວມລາງວັນ LDB ຕາມງວດ (LDB_STMT)
+    "ldb_tax_reward_items",      // ✅ ອາກອນ 5% LDB (SOKXAY_TAX_REWARD DEPOSIT)
   ];
   if (!validViews.includes(viewKey)) {
     return NextResponse.json(
@@ -320,29 +330,31 @@ export async function GET(req: NextRequest) {
     // ──────────────────────────────────────────────────────────────────────────
     if (viewKey === "bcel_refund") {
       const tid      = params.get("tid") ?? "";
-      const q        = params.get("q")   ?? "";
-      const pageNum  = Math.max(1, parseInt(params.get("page")     ?? "1",    10));
-      const pageSize = Math.min(9999, Math.max(10, parseInt(params.get("pageSize") ?? "100", 10)));
+      const ttTxn    = params.get("tt_txn") ?? "";
+      const dateFrom = params.get("date_from") ?? "";
+      const dateTo   = params.get("date_to")   ?? "";
+      const q        = params.get("q")         ?? "";
+      const pageNum  = Math.max(1, parseInt(params.get("page")     ?? "1",   10));
+      const pageSize = Math.min(500, Math.max(10, parseInt(params.get("pageSize") ?? "100", 10)));
       const rawSort  = params.get("sortKey") ?? "TID";
       const sortKey  = BCEL_SORT_COLS.has(rawSort) ? rawSort : "TID";
-      const sortDir  = params.get("sortDir") === "desc" ? "DESC" : "ASC";
+      const sortDir  = params.get("sortDir") === "asc" ? "ASC" : "DESC";
       const offset   = (pageNum - 1) * pageSize;
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const fb: Record<string, any> = {};
       const clauses: string[] = [];
-
-      if (tid) { clauses.push("TID = :p_tid");    fb.p_tid = tid; }
-      if (q)   { clauses.push("TID LIKE :p_q");   fb.p_q   = `%${q}%`; }
-
+      if (tid)      { clauses.push("TID      = :p_tid");      fb.p_tid      = tid; }
+      if (ttTxn)    { clauses.push("TT_TXN   = :p_tt_txn");   fb.p_tt_txn   = ttTxn; }
+      if (dateFrom) { clauses.push("TXN_DATE >= TO_DATE(:p_date_from, 'YYYY-MM-DD')");     fb.p_date_from = dateFrom; }
+      if (dateTo)   { clauses.push("TXN_DATE <  TO_DATE(:p_date_to,   'YYYY-MM-DD') + 1"); fb.p_date_to   = dateTo; }
+      if (q) {
+        clauses.push("(TO_CHAR(TID) LIKE :p_q OR TO_CHAR(TT_TXN) LIKE :p_q)");
+        fb.p_q = `%${q}%`;
+      }
       const where = clauses.length ? `WHERE ${clauses.join(" AND ")}` : "";
 
-      const aggSql = `
-        SELECT COUNT(*)         AS TOTAL,
-               SUM(TT_TXN)     AS TT_TXN,
-               SUM(REFUND_AMT) AS REFUND_AMT
-        FROM ${BCEL_REFUND_VIEW} ${where}`;
-
+      const aggSql  = `SELECT COUNT(*) AS TOTAL, SUM(REFUND_AMT) AS REFUND_AMT FROM ${BCEL_REFUND_VIEW} ${where}`;
       const dataSql = `
         SELECT * FROM ${BCEL_REFUND_VIEW} ${where}
         ORDER BY ${sortKey} ${sortDir}
@@ -352,45 +364,25 @@ export async function GET(req: NextRequest) {
         connection.execute(aggSql, fb, OPT_OBJ),
         connection.execute(dataSql, { ...fb, p_offset: offset, p_limit: pageSize }, OPT_OBJ),
       ]);
-
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const agg: any = aggRes.rows?.[0] ?? {};
       return NextResponse.json({
-        rows:  dataRes.rows ?? [],
-        total: Number(agg.TOTAL      ?? 0),
-        page:  pageNum,
+        rows:       dataRes.rows ?? [],
+        total:      Number(agg.TOTAL      ?? 0),
+        page:       pageNum,
         pageSize,
-        totals: {
-          TT_TXN:     Number(agg.TT_TXN     ?? 0),
-          REFUND_AMT: Number(agg.REFUND_AMT ?? 0),
-        },
+        totals: { REFUND_AMT: Number(agg.REFUND_AMT ?? 0) },
       });
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // payout_users — distinct PAYOUT_USER list ສໍາລັບ dropdown ຍົກເວັ້ນ user
-    // ──────────────────────────────────────────────────────────────────────────
-    if (viewKey === "payout_users") {
-      const result = await connection.execute(
-        `SELECT DISTINCT PAYOUT_USER
-         FROM ECOMMERCE2026.LOTLINK_PAYOUT
-         WHERE PAYOUT_USER IS NOT NULL
-         ORDER BY PAYOUT_USER`,
-        {}, OPT_OBJ,
-      );
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const users: string[] = (result.rows ?? []).map((r: any) => String(r.PAYOUT_USER));
-      return NextResponse.json({ users });
-    }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // payout_drawid — ສັງລວມ LOTLINK_PAYOUT ຕາມ DRAW_ID
+    // payout_drawid — ສັງລວມ payout ຕາມ DRAW_ID
     // ──────────────────────────────────────────────────────────────────────────
     if (viewKey === "payout_drawid") {
-      const from        = params.get("from")         ?? "";
-      const to          = params.get("to")           ?? "";
-      const dateFrom    = params.get("date_from")    ?? "";
-      const dateTo      = params.get("date_to")      ?? "";
+      const from     = params.get("from")      ?? "";
+      const to       = params.get("to")        ?? "";
+      const dateFrom = params.get("date_from") ?? "";
+      const dateTo   = params.get("date_to")   ?? "";
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const binds: Record<string, any> = {};
@@ -442,6 +434,39 @@ export async function GET(req: NextRequest) {
         payers: payersRes.rows ?? [],
         view: "LOTLINK_PAYOUT",
       });
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // payout_users — ສັງລວມ payout ຕາມ PAYOUT_USER
+    // ──────────────────────────────────────────────────────────────────────────
+    if (viewKey === "payout_users") {
+      const from     = params.get("from")      ?? "";
+      const to       = params.get("to")        ?? "";
+      const dateFrom = params.get("date_from") ?? "";
+      const dateTo   = params.get("date_to")   ?? "";
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const binds: Record<string, any> = {};
+      const clauses: string[] = ["1=1"];
+
+      if (from)     { clauses.push("lr.DRAW_ID     >= :p_from");      binds.p_from      = from; }
+      if (to)       { clauses.push("lr.DRAW_ID     <= :p_to");        binds.p_to        = to; }
+      if (dateFrom) { clauses.push("lr.PAYOUT_DATE >= TO_DATE(:p_date_from, 'YYYY-MM-DD')");     binds.p_date_from = dateFrom; }
+      if (dateTo)   { clauses.push("lr.PAYOUT_DATE <  TO_DATE(:p_date_to,   'YYYY-MM-DD') + 1"); binds.p_date_to   = dateTo; }
+
+      const where = `WHERE ${clauses.join(" AND ")}`;
+
+      const sql = `
+        SELECT lr.PAYOUT_USER,
+               SUM(lr.PAYOUT_REWARD_AMT) AS TOTAL_AMOUNT,
+               COUNT(*)                  AS TOTAL_COUNT
+        FROM ECOMMERCE2026.LOTLINK_PAYOUT lr
+        ${where}
+        GROUP BY lr.PAYOUT_USER
+        ORDER BY lr.PAYOUT_USER`;
+
+      const result = await connection.execute(sql, binds, OPT_OBJ);
+      return NextResponse.json({ rows: result.rows ?? [], view: "LOTLINK_PAYOUT_USERS" });
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -577,10 +602,6 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ rows });
     }
 
-
-    
-
-
     // ──────────────────────────────────────────────────────────────────────────
     // bank_reconciliation — ການກະທົບຍອດ BCEL (ບັນຊີຈ່າຍ) ຕາມວັນທີ
     // ──────────────────────────────────────────────────────────────────────────
@@ -708,6 +729,506 @@ export async function GET(req: NextRequest) {
         "ສ່ວນຕ່າງ":                         r["ສ່ວນຕ່າງ"]                            ?? "0.00",
       }));
 
+      return NextResponse.json({ rows });
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  BLOCK 1 — jdb_reward_summary (ໂຄງສ້າງໃໝ່ 7 columns ຕາມ template)
+    //   TXN_TYPE:
+    //     SPLUS_PRICE     → ລາງວັນ Sokxay   (col C)
+    //     FEE_SPLUS_PRICE → ທຳນຽມ Sokxay    (col D)
+    //     SPLUS_PRO       → ໂຊກຊ້ອນໂຊກ SK  (col E)
+    //     SPLUS_SPIN      → ໂຊກ Spin        (col F)
+    //     SCN_PRICE       → ລາງວັນ SCN      (col G)
+    //     SCN_PRO         → ໂຊກຊ້ອນໂຊກ SCN (col H)
+    // ══════════════════════════════════════════════════════════════════════════
+    if (viewKey === "jdb_reward_summary") {
+      const dateFrom = params.get("date_from") ?? "";
+      const dateTo   = params.get("date_to")   ?? "";
+
+      const conditions: string[] = [`BANK_ACCT = :jdbAcct`];
+      const binds: Record<string, string> = { jdbAcct: JDB_ACCT };
+
+      if (dateFrom) {
+        conditions.push("TRUNC(BANK_TXN_DATE) >= TO_DATE(:dateFrom, 'YYYY-MM-DD')");
+        binds.dateFrom = dateFrom;
+      }
+      if (dateTo) {
+        const dt = new Date(dateTo);
+        dt.setDate(dt.getDate() + 1);
+        conditions.push("TRUNC(BANK_TXN_DATE) < TO_DATE(:dateTo, 'YYYY-MM-DD')");
+        binds.dateTo = dt.toISOString().slice(0, 10);
+      }
+
+      const whereClause = `WHERE ${conditions.join(" AND ")}`;
+
+      const sqlMain = `
+        SELECT
+          CASE GROUPING(DRAWID)
+            WHEN 1 THEN 'ລວມທັງໝົດ'
+            ELSE TO_CHAR(DRAWID)
+          END AS "ງວດ",
+          TO_CHAR(
+            SUM(CASE WHEN TXN_TYPE = 'SPLUS_PRICE'     THEN BANK_DR ELSE 0 END),
+            'FM999,999,999,990') AS "ລາງວັນ Sokxay",
+          TO_CHAR(
+            SUM(CASE WHEN TXN_TYPE = 'FEE_SPLUS_PRICE' THEN BANK_DR ELSE 0 END),
+            'FM999,999,999,990') AS "ທຳນຽມ",
+          TO_CHAR(
+            SUM(CASE WHEN TXN_TYPE = 'SPLUS_PRO'       THEN BANK_DR ELSE 0 END),
+            'FM999,999,999,990') AS "ໂຊກຊ້ອນໂຊກ",
+          TO_CHAR(
+            SUM(CASE WHEN TXN_TYPE = 'SPLUS_SPIN'      THEN BANK_DR ELSE 0 END),
+            'FM999,999,999,990') AS "ໂຊກ Spin",
+          TO_CHAR(
+            SUM(CASE WHEN TXN_TYPE = 'SCN_PRICE'       THEN BANK_DR ELSE 0 END),
+            'FM999,999,999,990') AS "ລາງວັນ SCN",
+          TO_CHAR(
+            SUM(CASE WHEN TXN_TYPE = 'SCN_PRO'         THEN BANK_DR ELSE 0 END),
+            'FM999,999,999,990') AS "ໂຊກຊ້ອນໂຊກ SCN"
+        FROM ${JDB_STMT}
+        ${whereClause}
+        GROUP BY ROLLUP(DRAWID)
+        ORDER BY GROUPING(DRAWID), DRAWID
+      `;
+
+      const result = await connection.execute(sqlMain, binds, OPT_OBJ);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rows = (result.rows ?? []).map((r: any) => ({
+        "ງວດ":              r["ງວດ"]              ?? "",
+        "ລາງວັນ Sokxay":   r["ລາງວັນ Sokxay"]   ?? "0",
+        "ທຳນຽມ":            r["ທຳນຽມ"]            ?? "0",
+        "ໂຊກຊ້ອນໂຊກ":       r["ໂຊກຊ້ອນໂຊກ"]       ?? "0",
+        "ໂຊກ Spin":         r["ໂຊກ Spin"]         ?? "0",
+        "ລາງວັນ SCN":        r["ລາງວັນ SCN"]        ?? "0",
+        "ໂຊກຊ້ອນໂຊກ SCN":   r["ໂຊກຊ້ອນໂຊກ SCN"]   ?? "0",
+      }));
+
+      return NextResponse.json({ rows });
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  BLOCK 2 — jdb_tax5_items (ອາກອນ 5% — SPLUS_PRICE_TAX)
+    //   ດຶງ BANK_CR, ໃສ່ col ອາກອນ ໃນ Excel, 1 ລາຍການ/ແຖວ
+    // ══════════════════════════════════════════════════════════════════════════
+    if (viewKey === "jdb_tax5_items") {
+      const dateFrom = params.get("date_from") ?? "";
+      const dateTo   = params.get("date_to")   ?? "";
+
+      const conditions: string[] = [
+        `BANK_ACCT = :jdbAcct`,
+        `TXN_TYPE  = 'SPLUS_PRICE_TAX'`,
+      ];
+      const binds: Record<string, string> = { jdbAcct: JDB_ACCT };
+
+      if (dateFrom) {
+        conditions.push("TRUNC(BANK_TXN_DATE) >= TO_DATE(:dateFrom, 'YYYY-MM-DD')");
+        binds.dateFrom = dateFrom;
+      }
+      if (dateTo) {
+        const dt = new Date(dateTo);
+        dt.setDate(dt.getDate() + 1);
+        conditions.push("TRUNC(BANK_TXN_DATE) < TO_DATE(:dateTo, 'YYYY-MM-DD')");
+        binds.dateTo = dt.toISOString().slice(0, 10);
+      }
+
+      const sql = `
+        SELECT TO_CHAR(BANK_TXN_DATE, 'YYYY-MM-DD') AS BANK_DATE,
+               TO_CHAR(DRAWID)                       AS DRAWID,
+               BANK_CR
+        FROM ${JDB_STMT}
+        WHERE ${conditions.join(" AND ")}
+        ORDER BY BANK_TXN_DATE ASC, BANK_CR DESC
+      `;
+
+      const result = await connection.execute(sql, binds, OPT_OBJ);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rows = (result.rows ?? []).map((r: any) => ({
+        BANK_DATE: r.BANK_DATE ?? "",
+        DRAWID:    r.DRAWID    ?? "",
+        BANK_CR:   Number(r.BANK_CR ?? 0),
+      }));
+      return NextResponse.json({ rows });
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  BLOCK 3 — jdb_other_items (TXN_TYPE ນອກເໜືອ known types)
+    //   known types: SPLUS_PRICE, FEE_SPLUS_PRICE, SPLUS_PRO, SPLUS_SPIN,
+    //                SCN_PRICE, SCN_PRO, SPLUS_PRICE_TAX
+    //   ດຶງ BANK_DESCRIPTION + BANK_DR > 0, ສະແດງໃນ col ຄ່າທຳນຽມ
+    // ══════════════════════════════════════════════════════════════════════════
+    if (viewKey === "jdb_other_items") {
+      const dateFrom = params.get("date_from") ?? "";
+      const dateTo   = params.get("date_to")   ?? "";
+
+      const knownTypes = `'SPLUS_PRICE','FEE_SPLUS_PRICE','SPLUS_PRO','SPLUS_SPIN',
+                          'SCN_PRICE','SCN_PRO','SPLUS_PRICE_TAX'`;
+
+      const conditions: string[] = [
+        `BANK_ACCT = :jdbAcct`,
+        `TXN_TYPE NOT IN (${knownTypes})`,
+      ];
+      const binds: Record<string, string> = { jdbAcct: JDB_ACCT };
+
+      if (dateFrom) {
+        conditions.push("TRUNC(BANK_TXN_DATE) >= TO_DATE(:dateFrom, 'YYYY-MM-DD')");
+        binds.dateFrom = dateFrom;
+      }
+      if (dateTo) {
+        const dt = new Date(dateTo);
+        dt.setDate(dt.getDate() + 1);
+        conditions.push("TRUNC(BANK_TXN_DATE) < TO_DATE(:dateTo, 'YYYY-MM-DD')");
+        binds.dateTo = dt.toISOString().slice(0, 10);
+      }
+
+      const sql = `
+        SELECT
+          TO_CHAR(BANK_TXN_DATE, 'YYYY-MM-DD') AS BANK_DATE,
+          TXN_TYPE,
+          BANK_DESCRIPTION,
+          BANK_DR
+        FROM ${JDB_STMT}
+        WHERE ${conditions.join(" AND ")}
+          AND BANK_DR > 0
+        ORDER BY BANK_TXN_DATE ASC, TXN_TYPE, BANK_DESCRIPTION
+      `;
+
+      const result = await connection.execute(sql, binds, OPT_OBJ);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rows = (result.rows ?? []).map((r: any) => ({
+        BANK_DATE:        r.BANK_DATE        ?? "",
+        TXN_TYPE:         r.TXN_TYPE         ?? "",
+        BANK_DESCRIPTION: r.BANK_DESCRIPTION ?? "",
+        BANK_DR:          Number(r.BANK_DR   ?? 0),
+      }));
+      return NextResponse.json({ rows });
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  jdb_bank_reconciliation — ການກະທົບຍອດ JDB ຕາມວັນທີ (ຮອງຮັບທັງ 2 ບັນຊີ)
+    //  TXN_TYPE ທີ່ໃຊ້ (ຈາກຮູບ):
+    //    DR: SPLUS_PRICE, FEE_SPLUS_PRICE, SPLUS_PRO, SPLUS_REFUND, FEE_SPLUS_REFUND,
+    //        TRANSFER (DR), ATT, IBANK_FEE, FTR_FEE, TRANSFER FEE, FEE_JDB_LOTTO_SETTL
+    //    CR: LOTTO_SELL, TRANSFER (CR), SAVING_INTEREST, SPLUS_PRICE_TAX
+    // ══════════════════════════════════════════════════════════════════════════
+    if (viewKey === "jdb_bank_reconciliation") {
+      const acctParam = params.get("acct") ?? JDB_ACCT;
+      const dateFrom  = params.get("date_from") ?? "";
+      const dateTo    = params.get("date_to")   ?? "";
+
+      const conditions: string[] = [`BANK_ACCT = :acct`];
+      const binds: Record<string, string> = { acct: acctParam };
+
+      if (dateFrom) {
+        conditions.push("TRUNC(BANK_TXN_DATE) >= TO_DATE(:dateFrom, 'YYYY-MM-DD')");
+        binds.dateFrom = dateFrom;
+      }
+      if (dateTo) {
+        const dt = new Date(dateTo);
+        dt.setDate(dt.getDate() + 1);
+        conditions.push("TRUNC(BANK_TXN_DATE) < TO_DATE(:dateTo, 'YYYY-MM-DD')");
+        binds.dateTo = dt.toISOString().slice(0, 10);
+      }
+
+      const mainWhere = `WHERE ${conditions.join(" AND ")}`;
+
+      // Known TXN_TYPEs used in columns (for "ອື່ນໆ" detection)
+      const knownTypes = `'SPLUS_PRICE','FEE_SPLUS_PRICE','SPLUS_PRO','SPLUS_REFUND','FEE_SPLUS_REFUND',
+                          'LOTTO_SELL','TRANSFER','ATT','IBANK_FEE','FTR_FEE','TRANSFER FEE',
+                          'FEE_JDB_LOTTO_SETTL','SAVING_INTEREST','SPLUS_PRICE_TAX'`;
+
+      const sqlMain = `
+        SELECT
+          TO_CHAR(TRUNC(BANK_TXN_DATE), 'YYYY-MM-DD') AS "ວັນທີ",
+          -- ລວມໜີ້ = sum of all BANK_DR
+          TO_CHAR(SUM(BANK_DR), 'FM999,999,999,990.00') AS "ລວມໜີ້",
+          -- ລວມມີ = sum of all BANK_CR
+          TO_CHAR(SUM(BANK_CR), 'FM999,999,999,990.00') AS "ລວມມີ",
+          -- DR columns
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'SPLUS_PRICE'      THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "SPLUS_PRICE",
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'FEE_SPLUS_PRICE'  THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "FEE_SPLUS_PRICE",
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'SPLUS_PRO'        THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "SPLUS_PRO",
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'SPLUS_REFUND'     THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "SPLUS_REFUND",
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'FEE_SPLUS_REFUND' THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "FEE_SPLUS_REFUND",
+          -- CR columns
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'LOTTO_SELL'       THEN BANK_CR ELSE 0 END), 'FM999,999,999,990.00') AS "LOTTO_SELL",
+          -- TRANSFER: both DR and CR
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'TRANSFER'         THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "TRANSFER",
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'TRANSFER'         THEN BANK_CR ELSE 0 END), 'FM999,999,999,990.00') AS "TRANSFER_CR",
+          -- more DR
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'ATT'                    THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "ATT",
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'IBANK_FEE'              THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "IBANK_FEE",
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'FTR_FEE'               THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "FTR_FEE",
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'TRANSFER FEE'          THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "TRANSFER_FEE",
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'FEE_JDB_LOTTO_SETTL'  THEN BANK_DR ELSE 0 END), 'FM999,999,999,990.00') AS "FEE_JDB_LOTTO_SETTL",
+          -- more CR
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'SAVING_INTEREST' THEN BANK_CR ELSE 0 END), 'FM999,999,999,990.00') AS "SAVING_INTEREST",
+          TO_CHAR(SUM(CASE WHEN TXN_TYPE = 'SPLUS_PRICE_TAX' THEN BANK_CR ELSE 0 END), 'FM999,999,999,990.00') AS "SPLUS_PRICE_TAX",
+          -- ສ່ວນຕ່າງ = (sum categorised DR - sum categorised CR) - (actual BANK_DR - actual BANK_CR)
+          TO_CHAR(
+            (
+                SUM(CASE WHEN TXN_TYPE = 'SPLUS_PRICE'           THEN BANK_DR ELSE 0 END)
+              + SUM(CASE WHEN TXN_TYPE = 'FEE_SPLUS_PRICE'       THEN BANK_DR ELSE 0 END)
+              + SUM(CASE WHEN TXN_TYPE = 'SPLUS_PRO'             THEN BANK_DR ELSE 0 END)
+              + SUM(CASE WHEN TXN_TYPE = 'SPLUS_REFUND'          THEN BANK_DR ELSE 0 END)
+              + SUM(CASE WHEN TXN_TYPE = 'FEE_SPLUS_REFUND'      THEN BANK_DR ELSE 0 END)
+              + SUM(CASE WHEN TXN_TYPE = 'TRANSFER'              THEN BANK_DR ELSE 0 END)
+              + SUM(CASE WHEN TXN_TYPE = 'ATT'                   THEN BANK_DR ELSE 0 END)
+              + SUM(CASE WHEN TXN_TYPE = 'IBANK_FEE'             THEN BANK_DR ELSE 0 END)
+              + SUM(CASE WHEN TXN_TYPE = 'FTR_FEE'              THEN BANK_DR ELSE 0 END)
+              + SUM(CASE WHEN TXN_TYPE = 'TRANSFER FEE'          THEN BANK_DR ELSE 0 END)
+              + SUM(CASE WHEN TXN_TYPE = 'FEE_JDB_LOTTO_SETTL'  THEN BANK_DR ELSE 0 END)
+              - SUM(CASE WHEN TXN_TYPE = 'LOTTO_SELL'            THEN BANK_CR ELSE 0 END)
+              - SUM(CASE WHEN TXN_TYPE = 'TRANSFER'              THEN BANK_CR ELSE 0 END)
+              - SUM(CASE WHEN TXN_TYPE = 'SAVING_INTEREST'       THEN BANK_CR ELSE 0 END)
+              - SUM(CASE WHEN TXN_TYPE = 'SPLUS_PRICE_TAX'       THEN BANK_CR ELSE 0 END)
+            ) - (SUM(BANK_DR) - SUM(BANK_CR))
+          , 'FM999,999,999,990.00') AS "ສ່ວນຕ່າງ"
+        FROM ${JDB_STMT}
+        ${mainWhere}
+        GROUP BY ROLLUP(TRUNC(BANK_TXN_DATE))
+        ORDER BY GROUPING(TRUNC(BANK_TXN_DATE)), TRUNC(BANK_TXN_DATE)
+      `;
+
+      // Others map — TXN_TYPEs ທີ່ບໍ່ຢູ່ໃນ known list
+      const othersConditions = [...conditions, `TXN_TYPE NOT IN (${knownTypes})`];
+      const sqlOthers = `
+        SELECT
+          TO_CHAR(TRUNC(BANK_TXN_DATE), 'YYYY-MM-DD') AS BD,
+          TXN_TYPE,
+          CASE
+            WHEN SUM(BANK_DR) > 0 AND SUM(BANK_CR) = 0 THEN 'Dr'
+            WHEN SUM(BANK_CR) > 0 AND SUM(BANK_DR) = 0 THEN 'Cr'
+            ELSE 'Dr/Cr'
+          END AS DIRECTION,
+          ABS(SUM(BANK_DR) - SUM(BANK_CR)) AS AMT
+        FROM ${JDB_STMT}
+        WHERE ${othersConditions.join(" AND ")}
+        GROUP BY TRUNC(BANK_TXN_DATE), TXN_TYPE
+        ORDER BY TRUNC(BANK_TXN_DATE), TXN_TYPE
+      `;
+
+      const [mainRes, othersRes] = await Promise.all([
+        connection.execute(sqlMain,   binds, OPT_OBJ),
+        connection.execute(sqlOthers, binds, OPT_OBJ),
+      ]);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const othersMap: Record<string, string> = {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (othersRes.rows ?? []).forEach((o: any) => {
+        const bd  = String(o.BD ?? "");
+        const txt = `${o.TXN_TYPE} (${o.DIRECTION}): ${Number(o.AMT).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
+        othersMap[bd] = othersMap[bd] ? `${othersMap[bd]} | ${txt}` : txt;
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rows = (mainRes.rows ?? []).map((r: any) => ({
+        "ວັນທີ":               r["ວັນທີ"]               ?? null,
+        "ລວມໜີ້":              r["ລວມໜີ້"]              ?? "0.00",
+        "ລວມມີ":               r["ລວມມີ"]               ?? "0.00",
+        "SPLUS_PRICE":         r["SPLUS_PRICE"]         ?? "0.00",
+        "FEE_SPLUS_PRICE":     r["FEE_SPLUS_PRICE"]     ?? "0.00",
+        "SPLUS_PRO":           r["SPLUS_PRO"]           ?? "0.00",
+        "SPLUS_REFUND":        r["SPLUS_REFUND"]        ?? "0.00",
+        "FEE_SPLUS_REFUND":    r["FEE_SPLUS_REFUND"]    ?? "0.00",
+        "LOTTO_SELL":          r["LOTTO_SELL"]          ?? "0.00",
+        "TRANSFER":            r["TRANSFER"]            ?? "0.00",
+        "TRANSFER_CR":         r["TRANSFER_CR"]         ?? "0.00",
+        "ATT":                 r["ATT"]                 ?? "0.00",
+        "IBANK_FEE":           r["IBANK_FEE"]           ?? "0.00",
+        "FTR_FEE":             r["FTR_FEE"]             ?? "0.00",
+        "TRANSFER_FEE":        r["TRANSFER_FEE"]        ?? "0.00",
+        "FEE_JDB_LOTTO_SETTL": r["FEE_JDB_LOTTO_SETTL"] ?? "0.00",
+        "SAVING_INTEREST":     r["SAVING_INTEREST"]     ?? "0.00",
+        "SPLUS_PRICE_TAX":     r["SPLUS_PRICE_TAX"]     ?? "0.00",
+        "ອື່ນໆ":               r["ວັນທີ"] ? (othersMap[r["ວັນທີ"]] ?? null) : null,
+        "ສ່ວນຕ່າງ":            r["ສ່ວນຕ່າງ"]            ?? "0.00",
+      }));
+
+      return NextResponse.json({ rows });
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  ldb_reward_summary — ສັງລວມລາງວັນ LDB ຕາມງວດ (LDB_STMT)
+    //  TXN_TYPE → column mapping (WITHDRAW = ໜີ້, DEPOSIT = ມີ):
+    //    SOKXAY_REWARD        → ຈຳນວນລາງວັນ Sokxay  (WITHDRAW)
+    //    SOKXAY_BONUS         → ໂຊກຊ້ອນໂຊກ           (WITHDRAW)
+    //    SOKXAY_SPIN          → Spin                  (WITHDRAW)
+    //    SCN_REWARD           → ລາງວັນ SCN            (WITHDRAW)
+    //    LDB_FEE_REWARD_FTR   → LDB_FEE_REWARD_FTR   (WITHDRAW)
+    //    FTR                  → FTR                   (DEPOSIT)
+    //    FTR_FEE              → FTR_FEE               (WITHDRAW)
+    //    LDB_FEE_DEEPLINK     → LDB_FEE_DEEPLINK      (WITHDRAW)
+    //    LDB_FEE_LOTTO_SELL   → LDB_FEE_LOTTO_SELL   (WITHDRAW+DEPOSIT)
+    //    SOKXAY_TAX_REWARD    → ອາກອນ5%              (DEPOSIT)
+    // ══════════════════════════════════════════════════════════════════════════
+    if (viewKey === "ldb_reward_summary") {
+      const dateFrom = params.get("date_from") ?? "";
+      const dateTo   = params.get("date_to")   ?? "";
+
+      const conditions: string[] = [`ACCT_NO = :ldbAcct`];
+      const binds: Record<string, string> = { ldbAcct: LDB_ACCT };
+
+      if (dateFrom) {
+        conditions.push("DATE_TIME >= TO_DATE(:dateFrom, 'YYYY-MM-DD')");
+        binds.dateFrom = dateFrom;
+      }
+      if (dateTo) {
+        const dt = new Date(dateTo);
+        dt.setDate(dt.getDate() + 1);
+        conditions.push("DATE_TIME < TO_DATE(:dateTo, 'YYYY-MM-DD')");
+        binds.dateTo = dt.toISOString().slice(0, 10);
+      }
+
+      const whereClause = `WHERE ${conditions.join(" AND ")}`;
+
+      const sqlMain = `
+        SELECT
+          t."ງວດ",
+          t."ຈຳນວນລາງວັນ Sokxay",
+          t."ໂຊກຊ້ອນໂຊກ",
+          t."Spin",
+          t."ລາງວັນ SCN",
+          t."LDB_FEE_REWARD_FTR",
+          t."FTR",
+          t."FTR_FEE",
+          t."LDB_FEE_DEEPLINK",
+          t."LDB_FEE_LOTTO_SELL",
+          t."ລວມຫນີ້ທັງໝົດ",
+          t."ລວມມີທັງໝົດ",
+          t."ອາກອນ5%"
+        FROM (
+          SELECT
+            CASE GROUPING(DRAWID)
+              WHEN 1 THEN 'ລວມທັງໝົດ'
+              ELSE DRAWID
+            END AS "ງວດ",
+            TO_CHAR(
+              SUM(CASE WHEN TXN_TYPE = 'SOKXAY_REWARD'
+                       THEN WITHDRAW ELSE 0 END),
+              'FM999,999,999,990') AS "ຈຳນວນລາງວັນ Sokxay",
+            TO_CHAR(
+              SUM(CASE WHEN TXN_TYPE = 'SOKXAY_BONUS'
+                       THEN WITHDRAW ELSE 0 END),
+              'FM999,999,999,990') AS "ໂຊກຊ້ອນໂຊກ",
+            TO_CHAR(
+              SUM(CASE WHEN TXN_TYPE = 'SOKXAY_SPIN'
+                       THEN WITHDRAW ELSE 0 END),
+              'FM999,999,999,990') AS "Spin",
+            TO_CHAR(
+              SUM(CASE WHEN TXN_TYPE = 'SCN_REWARD'
+                       THEN WITHDRAW ELSE 0 END),
+              'FM999,999,999,990') AS "ລາງວັນ SCN",
+            TO_CHAR(
+              SUM(CASE WHEN TXN_TYPE = 'LDB_FEE_REWARD_FTR'
+                       THEN WITHDRAW ELSE 0 END),
+              'FM999,999,999,990') AS "LDB_FEE_REWARD_FTR",
+            TO_CHAR(
+              SUM(CASE WHEN TXN_TYPE = 'FTR'
+                       THEN DEPOSIT ELSE 0 END),
+              'FM999,999,999,990') AS "FTR",
+            TO_CHAR(
+              SUM(CASE WHEN TXN_TYPE = 'FTR_FEE'
+                       THEN WITHDRAW ELSE 0 END),
+              'FM999,999,999,990') AS "FTR_FEE",
+            TO_CHAR(
+              SUM(CASE WHEN TXN_TYPE = 'LDB_FEE_DEEPLINK'
+                       THEN WITHDRAW ELSE 0 END),
+              'FM999,999,999,990') AS "LDB_FEE_DEEPLINK",
+            TO_CHAR(
+              SUM(CASE WHEN TXN_TYPE = 'LDB_FEE_LOTTO_SELL'
+                       THEN (WITHDRAW + DEPOSIT) ELSE 0 END),
+              'FM999,999,999,990') AS "LDB_FEE_LOTTO_SELL",
+            TO_CHAR(
+              SUM(CASE WHEN TXN_TYPE = 'SOKXAY_TAX_REWARD'
+                       THEN DEPOSIT ELSE 0 END),
+              'FM999,999,999,990') AS "ອາກອນ5%",
+            -- ລວມຫນີ້ (Withdraw): ລວມທຸກ TXN ທີ່ເປັນ WITHDRAW
+            TO_CHAR(
+              SUM(CASE WHEN TXN_TYPE IN (
+                          'SOKXAY_REWARD','SOKXAY_BONUS','SOKXAY_SPIN',
+                          'LDB_FEE_REWARD_FTR','FTR_FEE','LDB_FEE_LOTTO_SELL','FTR',
+                          'LDB_FEE_DEEPLINK','SCN_REWARD')
+                       THEN WITHDRAW ELSE 0 END),
+              'FM999,999,999,990') AS "ລວມຫນີ້ທັງໝົດ",
+            -- ລວມມີ (Deposit): FTR deposit + SOKXAY_TAX_REWARD deposit
+            TO_CHAR(
+              SUM(CASE WHEN TXN_TYPE IN ('SOKXAY_TAX_REWARD','FTR')
+                       THEN DEPOSIT ELSE 0 END),
+              'FM999,999,999,990') AS "ລວມມີທັງໝົດ",
+            GROUPING(DRAWID) AS GRP_FLAG
+          FROM ${LDB_STMT}
+          ${whereClause}
+          GROUP BY ROLLUP(DRAWID)
+          ORDER BY GROUPING(DRAWID), DRAWID
+        ) t
+      `;
+
+      const result = await connection.execute(sqlMain, binds, OPT_OBJ);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rows = (result.rows ?? []).map((r: any) => ({
+        "ງວດ":                  r["ງວດ"]                  ?? "",
+        "ຈຳນວນລາງວັນ Sokxay":   r["ຈຳນວນລາງວັນ Sokxay"]   ?? "0",
+        "ໂຊກຊ້ອນໂຊກ":            r["ໂຊກຊ້ອນໂຊກ"]            ?? "0",
+        "Spin":                  r["Spin"]                  ?? "0",
+        "ລາງວັນ SCN":             r["ລາງວັນ SCN"]             ?? "0",
+        "LDB_FEE_REWARD_FTR":    r["LDB_FEE_REWARD_FTR"]    ?? "0",
+        "FTR":                   r["FTR"]                   ?? "0",
+        "FTR_FEE":               r["FTR_FEE"]               ?? "0",
+        "LDB_FEE_DEEPLINK":      r["LDB_FEE_DEEPLINK"]      ?? "0",
+        "LDB_FEE_LOTTO_SELL":    r["LDB_FEE_LOTTO_SELL"]    ?? "0",
+        "ລວມຫນີ້ທັງໝົດ":          r["ລວມຫນີ້ທັງໝົດ"]          ?? "0",
+        "ລວມມີທັງໝົດ":            r["ລວມມີທັງໝົດ"]            ?? "0",
+        "ອາກອນ5%":               r["ອາກອນ5%"]               ?? "0",
+      }));
+
+      return NextResponse.json({ rows });
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  ldb_tax_reward_items — ດຶງລາຍການ SOKXAY_TAX_REWARD ທຸກ transaction
+    //  ໃຊ້ສຳລັບ col N (ອາກອນ5%) ໃນ Excel export (1 ລາຍການ ຕໍ່ 1 ແຖວ)
+    // ══════════════════════════════════════════════════════════════════════════
+    if (viewKey === "ldb_tax_reward_items") {
+      const dateFrom = params.get("date_from") ?? "";
+      const dateTo   = params.get("date_to")   ?? "";
+
+      const conditions: string[] = [
+        `ACCT_NO   = :ldbAcct`,
+        `TXN_TYPE  = 'SOKXAY_TAX_REWARD'`,
+      ];
+      const binds: Record<string, string> = { ldbAcct: LDB_ACCT };
+
+      if (dateFrom) {
+        conditions.push("DATE_TIME >= TO_DATE(:dateFrom, 'YYYY-MM-DD')");
+        binds.dateFrom = dateFrom;
+      }
+      if (dateTo) {
+        const dt = new Date(dateTo);
+        dt.setDate(dt.getDate() + 1);
+        conditions.push("DATE_TIME < TO_DATE(:dateTo, 'YYYY-MM-DD')");
+        binds.dateTo = dt.toISOString().slice(0, 10);
+      }
+
+      const sql = `
+        SELECT TO_CHAR(DATE_TIME, 'YYYY-MM-DD') AS DATE_TIME,
+               TO_CHAR(DRAWID)                  AS DRAWID,
+               DEPOSIT
+        FROM ${LDB_STMT}
+        WHERE ${conditions.join(" AND ")}
+        ORDER BY DATE_TIME ASC, DEPOSIT DESC
+      `;
+
+      const result = await connection.execute(sql, binds, OPT_OBJ);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rows = (result.rows ?? []).map((r: any) => ({
+        DATE_TIME: r.DATE_TIME ?? "",
+        DRAWID:    r.DRAWID    ?? "",
+        DEPOSIT:   Number(r.DEPOSIT ?? 0),
+      }));
       return NextResponse.json({ rows });
     }
 

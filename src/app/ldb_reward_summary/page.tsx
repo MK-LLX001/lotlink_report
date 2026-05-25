@@ -16,42 +16,41 @@ import XLSXStyle, {
 //  Types
 // ══════════════════════════════════════════════════════════════════════════════
 
-interface JdbRow {
-  "ງວດ":             string | number;
-  "ລາງວັນ Sokxay":   string | number;
-  "ໂຊກຊ້ອນໂຊກ":      string | number;
-  "ທຳນຽມ":           string | number;
-  "ໂຊກ Spin":        string | number;
-  "ລາງວັນ SCN":      string | number;
-  "ໂຊກຊ້ອນໂຊກ SCN": string | number;
+interface LdbRow {
+  "ງວດ":                  string | number;
+  "ຈຳນວນລາງວັນ Sokxay":   string | number;
+  "ໂຊກຊ້ອນໂຊກ":            string | number;
+  "Spin":                  string | number;
+  "ລາງວັນ SCN":             string | number;
+  "LDB_FEE_REWARD_FTR":    string | number;
+  "FTR":                   string | number;
+  "FTR_FEE":               string | number;
+  "LDB_FEE_DEEPLINK":      string | number;
+  "LDB_FEE_LOTTO_SELL":    string | number;
+  "ລວມຫນີ້ທັງໝົດ":          string | number;
+  "ລວມມີທັງໝົດ":            string | number;
+  "ອາກອນ5%":               string | number;
 }
 
-interface JdbTaxRow {
-  BANK_DATE: string;
+interface LdbTaxRow {
+  DATE_TIME: string;
   DRAWID:    string | number;
-  BANK_CR:   number;
-}
-
-interface JdbOtherRow {
-  TXN_TYPE:         string;
-  BANK_DESCRIPTION: string;
-  BANK_DATE:        string;
-  BANK_DR:          number;
+  DEPOSIT:   number;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-//  Excel Export — inlined (xlsx-js-style)
-//  Layout ຕາມ template ບໍດສະຫຼຸບລາງວັນJDB4_2026.xlsx
-//  Cols A–J (0–9):
-//    A=ລຳດັບ  B=ງວດທີ  C=ລາງວັນSokxay  D=ທຳນຽມ  E=ໂຊກຊ້ອນໂຊກ  F=ໂຊກSpin
-//    G=ລາງວັນSCN  H=ໂຊກຊ້ອນໂຊກSCN  I=ອາກອນ5%  J=ຄ່າທຳນຽມ
+//  Excel helpers — xlsx-js-style
+//  Cols A–H (0–7):
+//    A=ລຳດັບ  B=ງວດທີ
+//    C=ລາງວັນ(Sokxay)  D=ໂຊກຊ້ອນໂຊກ(Sokxay)  E=ໂຊກSpin
+//    F=ລາງວັນ(SCN)  G=ໂຊກຊ້ອນໂຊກ(SCN)
+//    H=ອາກອນ5%
 // ══════════════════════════════════════════════════════════════════════════════
 
-const FONT       = "Phetsarath OT";
-const BG_HEADER  = "9DC3E6";
-const BG_TOTAL   = "BDD7EE";
-const BG_OTHER   = "FFF2CC";
-const LAST_COL   = 9; // J
+const FONT      = "Phetsarath OT";
+const BG_HEADER = "A9D18E";   // green
+const BG_TOTAL  = "C6EFCE";   // light green
+const LAST_COL  = 7;          // H (0-indexed)
 
 type BSide = { color: CellStyleColor; style?: BorderType };
 const thin   = (): BSide => ({ style: "thin",   color: { rgb: "000000" } });
@@ -64,55 +63,42 @@ const sTitle = (sz = 12, bold = false): CellStyle => ({
   font:      { name: FONT, sz, bold },
   alignment: { horizontal: "center", vertical: "center" },
 });
-const sHeader = (sz = 11): CellStyle => ({
+const sHeader = (sz = 10): CellStyle => ({
   font:      { name: FONT, bold: true, sz },
   fill:      { patternType: "solid", fgColor: { rgb: BG_HEADER } },
   alignment: { horizontal: "center", vertical: "center", wrapText: true },
   border:    allThin(),
 });
 const sData = (align: "center" | "right" = "right", leftMed = false): CellStyle => ({
-  font:      { name: FONT, sz: 11 },
+  font:      { name: FONT, sz: 10 },
   alignment: { horizontal: align, vertical: "center" },
   numFmt:    "#,##0",
   border:    leftMed ? medLeft() : allThin(),
 });
 const sDataText = (align: "center" | "left" = "center"): CellStyle => ({
-  font:      { name: FONT, sz: 11 },
+  font:      { name: FONT, sz: 10 },
   alignment: { horizontal: align, vertical: "center" },
   border:    allThin(),
 });
 const sSum = (): CellStyle => ({
-  font:      { name: FONT, bold: true, sz: 11 },
+  font:      { name: FONT, bold: true, sz: 10 },
   fill:      { patternType: "solid", fgColor: { rgb: BG_HEADER } },
   alignment: { horizontal: "center", vertical: "center" },
   numFmt:    "#,##0",
   border:    allThin(),
 });
 const sTotalLabel = (): CellStyle => ({
-  font:      { name: FONT, bold: true, sz: 12 },
+  font:      { name: FONT, bold: true, sz: 11 },
   fill:      { patternType: "solid", fgColor: { rgb: BG_TOTAL } },
   alignment: { horizontal: "center", vertical: "center" },
   border:    { bottom: thick() },
 });
 const sTotalValue = (): CellStyle => ({
-  font:      { name: FONT, bold: true, sz: 12 },
+  font:      { name: FONT, bold: true, sz: 11 },
   fill:      { patternType: "solid", fgColor: { rgb: BG_TOTAL } },
   alignment: { horizontal: "center", vertical: "center" },
   numFmt:    "#,##0",
   border:    { bottom: thick() },
-});
-const sOtherLabel = (): CellStyle => ({
-  font:      { name: FONT, sz: 10, italic: true, color: { rgb: "5C4A00" } },
-  fill:      { patternType: "solid", fgColor: { rgb: BG_OTHER } },
-  alignment: { horizontal: "left", vertical: "center", wrapText: true },
-  border:    allThin(),
-});
-const sOtherValue = (): CellStyle => ({
-  font:      { name: FONT, sz: 10, bold: true, color: { rgb: "7B5C00" } },
-  fill:      { patternType: "solid", fgColor: { rgb: BG_OTHER } },
-  alignment: { horizontal: "right", vertical: "center" },
-  numFmt:    "#,##0",
-  border:    allThin(),
 });
 
 const C  = (v: string | number, s: CellStyle): CellObject => ({ v, t: typeof v === "number" ? "n" : "s", s } as CellObject);
@@ -140,163 +126,155 @@ function monthLabel(s: string): string {
   return `ເດືອນ ${MONTH_LAO[d.getMonth()+1] ?? ""} ${d.getFullYear()}`;
 }
 
-function buildSheet(dateDisplay: string, dataRows: JdbRow[], taxItems: JdbTaxRow[], otherItems: JdbOtherRow[]): WorkSheet {
+function buildSheet(dateDisplay: string, dataRows: LdbRow[], taxItems: LdbTaxRow[]): WorkSheet {
   const ws: WorkSheet = {};
   const merges: XLSXStyle.Range[] = [];
   const S = (r: number, c: number, cl: CellObject) => { ws[XLSXStyle.utils.encode_cell({ r, c })] = cl; };
   const M = (r1: number, c1: number, r2: number, c2: number) => { merges.push({ s:{r:r1,c:c1}, e:{r:r2,c:c2} }); };
 
-  // R1-R3: Title
-  S(0,0, C("   ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ",                       sTitle(12)));
-  S(1,0, C("    ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນາຖາວອນ",       sTitle(12)));
-  S(2,0, C(`ຕາຕາລາງສະຫຼຸບຈ່າຍລາງວັນຫວຍຂອງ (JDB) ວັນທີ ${dateDisplay}`,  sTitle(12, true)));
+  // ── R1-R3: Title ────────────────────────────────────────────────────────────
+  // Merge A:H (cols 0-7)
+  S(0,0, C("   ສາທາລະນະລັດ ປະຊາທິປະໄຕ ປະຊາຊົນລາວ",                        sTitle(12)));
+  S(1,0, C("    ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນາຖາວອນ",        sTitle(12)));
+  S(2,0, C(`ຕາຕາລາງສະຫຼຸບຈ່າຍລາງວັນຫວຍຂອງ (LDB) ວັນທີ${dateDisplay}`,   sTitle(12, true)));
   M(0,0, 0,LAST_COL); M(1,0, 1,LAST_COL); M(2,0, 2,LAST_COL);
 
-  // R4: blank
+  // ── R4: blank ───────────────────────────────────────────────────────────────
   S(3,0, CE(sTitle())); M(3,0, 3,LAST_COL);
 
-  // R5: Group headers
-  S(4,0, C("ລຳດັບ",                    sHeader(11)));
-  S(4,1, C("ງວດທີ",                    sHeader(12)));
-  S(4,2, C("ການຈ່າຍລາງວັນແອັບ Sokxay", sHeader(12)));
-  for (let c=3; c<=5; c++) S(4,c, CE(sHeader(12)));
-  S(4,6, C("ການຈ່າຍລາງວັນແອັບ SCN",   sHeader(12)));
-  S(4,7, CE(sHeader(12)));
-  S(4,8, C("ອາກອນ 5%",                 sHeader(12)));
-  S(4,9, C("ຄ່າທຳນຽມ",                 sHeader(12)));
-  M(4,0, 5,0); M(4,1, 5,1); M(4,2, 4,5); M(4,6, 4,7); M(4,8, 5,8); M(4,9, 5,9);
+  // ── R5: group headers ───────────────────────────────────────────────────────
+  //  A=ລຳດັບ (merge R5:R6)
+  //  B=ງວດທີ (merge R5:R6)
+  //  C-E = ການຈ່າຍລາງວັນແອັບ Sokxay (merge C5:E5) — ລາງວັນ / ໂຊກຊ້ອນໂຊກ / ໂຊກ Spin
+  //  F-G = ການຈ່າຍລາງວັນແອັບ SCN (merge F5:G5) — ລາງວັນ / ໂຊກຊ້ອນໂຊກ
+  //  H=ອາກອນ 5% (merge R5:R6)
+  S(4,0, C("ລຳດັບ",                              sHeader(10))); M(4,0, 5,0);
+  S(4,1, C("ງວດທີ",                              sHeader(11))); M(4,1, 5,1);
+  S(4,2, C("ການຈ່າຍລາງວັນແອັບ Sokxay",           sHeader(11)));
+  S(4,3, CE(sHeader(11))); S(4,4, CE(sHeader(11)));
+  M(4,2, 4,4);
+  S(4,5, C("ການຈ່າຍລາງວັນແອັບ SCN",              sHeader(11)));
+  S(4,6, CE(sHeader(11)));
+  M(4,5, 4,6);
+  S(4,7, C("ອາກອນ 5%",                           sHeader(10))); M(4,7, 5,7);
 
-  // R6: Sub-headers
-  S(5,0, CE(sHeader(11))); S(5,1, CE(sHeader(12)));
-  S(5,2, C("ລາງວັນ",     sHeader(11)));
-  S(5,3, C("ທຳນຽມ",      sHeader(11)));
-  S(5,4, C("ໂຊກຊ້ອນໂຊກ", sHeader(11)));
-  S(5,5, C("ໂຊກ Spin",   sHeader(11)));
-  S(5,6, C("ລາງວັນ",     sHeader(11)));
-  S(5,7, C("ໂຊກຊ້ອນໂຊກ", sHeader(11)));
-  S(5,8, CE(sHeader(11))); S(5,9, CE(sHeader(11)));
+  // ── R6: sub-headers ─────────────────────────────────────────────────────────
+  S(5,0, CE(sHeader(10))); S(5,1, CE(sHeader(11)));
+  S(5,2, C("ລາງວັນ",       sHeader(10)));
+  S(5,3, C("ໂຊກຊ້ອນໂຊກ",  sHeader(10)));
+  S(5,4, C("ໂຊກ Spin",    sHeader(10)));
+  S(5,5, C("ລາງວັນ",       sHeader(10)));
+  S(5,6, C("ໂຊກຊ້ອນໂຊກ",  sHeader(10)));
+  S(5,7, CE(sHeader(10)));
 
-  // R7+: Data rows
-  const totalDataRows = Math.max(dataRows.length, taxItems.length);
+  // ── Data rows ───────────────────────────────────────────────────────────────
+  // Map from LdbRow fields to the 5 data columns:
+  //   C = ຈຳນວນລາງວັນ Sokxay  (Sokxay ລາງວັນ)
+  //   D = ໂຊກຊ້ອນໂຊກ           (Sokxay ໂຊກຊ້ອນໂຊກ)
+  //   E = Spin                  (Sokxay ໂຊກ Spin)
+  //   F = ລາງວັນ SCN             (SCN ລາງວັນ)
+  //   G = LDB_FEE_REWARD_FTR    (SCN ໂຊກຊ້ອນໂຊກ — closest match)
+  //   H = ອາກອນ5% from taxItems
+
   let sumC=0, sumD=0, sumE=0, sumF=0, sumG=0, sumH=0;
   for (const dr of dataRows) {
-    sumC += parseNum(dr["ລາງວັນ Sokxay"]);
-    sumD += parseNum(dr["ທຳນຽມ"]);
-    sumE += parseNum(dr["ໂຊກຊ້ອນໂຊກ"]);
-    sumF += parseNum(dr["ໂຊກ Spin"]);
-    sumG += parseNum(dr["ລາງວັນ SCN"]);
-    sumH += parseNum(dr["ໂຊກຊ້ອນໂຊກ SCN"]);
+    sumC += parseNum(dr["ຈຳນວນລາງວັນ Sokxay"]);
+    sumD += parseNum(dr["ໂຊກຊ້ອນໂຊກ"]);
+    sumE += parseNum(dr["Spin"]);
+    sumF += parseNum(dr["ລາງວັນ SCN"]);
+    sumG += parseNum(dr["LDB_FEE_REWARD_FTR"]);
   }
-  const sumI = taxItems.reduce((s,t) => s + t.BANK_CR, 0);
+  sumH = taxItems.reduce((s,t) => s + t.DEPOSIT, 0);
 
-  for (let i=0; i<totalDataRows; i++) {
+  const totalRows = Math.max(dataRows.length, taxItems.length);
+
+  for (let i=0; i<totalRows; i++) {
     const r  = 6 + i;
-    const dr = dataRows[i]  ?? null;
-    const tx = taxItems[i]  ?? null;
+    const dr = dataRows[i] ?? null;
+    const tx = taxItems[i] ?? null;
+
     if (dr) {
-      S(r,0, C(i+1,             { font:{name:FONT,sz:11}, alignment:{horizontal:"center",vertical:"center"}, border:medLeft() }));
-      S(r,1, C(String(dr["ງວດ"]), sDataText("center")));
-      S(r,2, C(parseNum(dr["ລາງວັນ Sokxay"]),   sData("right")));
-      S(r,3, C(parseNum(dr["ທຳນຽມ"]),            sData("right")));
-      S(r,4, C(parseNum(dr["ໂຊກຊ້ອນໂຊກ"]),       sData("right")));
-      S(r,5, C(parseNum(dr["ໂຊກ Spin"]),          sData("right")));
-      S(r,6, C(parseNum(dr["ລາງວັນ SCN"]),        sData("right")));
-      S(r,7, C(parseNum(dr["ໂຊກຊ້ອນໂຊກ SCN"]),   sData("right")));
+      S(r,0, C(i+1, { font:{name:FONT,sz:10}, alignment:{horizontal:"center",vertical:"center"}, border:medLeft() }));
+      S(r,1, C(String(dr["ງວດ"]),                        sDataText("center")));
+      S(r,2, C(parseNum(dr["ຈຳນວນລາງວັນ Sokxay"]),      sData("right")));
+      S(r,3, C(parseNum(dr["ໂຊກຊ້ອນໂຊກ"]),               sData("right")));
+      S(r,4, C(parseNum(dr["Spin"]),                      sData("right")));
+      S(r,5, C(parseNum(dr["ລາງວັນ SCN"]),                sData("right")));
+      S(r,6, C(parseNum(dr["LDB_FEE_REWARD_FTR"]),        sData("right")));
     } else {
-      S(r,0, CE({ font:{name:FONT,sz:11}, border:medLeft() }));
-      for (let c=1; c<=7; c++) S(r,c, CE(sData("right")));
+      S(r,0, CE({ font:{name:FONT,sz:10}, border:medLeft() }));
+      for (let c=1; c<=6; c++) S(r,c, CE(sData("right")));
     }
-    S(r,8, tx ? C(tx.BANK_CR, sData("right")) : CE(sData("right")));
-    S(r,9, CE(sData("right")));
+    S(r,7, tx ? C(tx.DEPOSIT, sData("right")) : CE(sData("right")));
   }
 
-  // SUM row
-  const rSum = 6 + totalDataRows;
-  S(rSum,0, CE(sSum())); S(rSum,1, CE(sSum()));
-  S(rSum,2, C(sumC,sSum())); S(rSum,3, C(sumD,sSum()));
-  S(rSum,4, C(sumE,sSum())); S(rSum,5, C(sumF,sSum()));
-  S(rSum,6, C(sumG,sSum())); S(rSum,7, C(sumH,sSum()));
-  S(rSum,8, C(sumI,sSum())); S(rSum,9, CE(sSum()));
-  M(rSum,0, rSum,1);
+  // ── SUM row ─────────────────────────────────────────────────────────────────
+  const rSum = 6 + totalRows;
+  // A-B merged, empty label
+  S(rSum,0, CE(sSum())); S(rSum,1, CE(sSum())); M(rSum,0, rSum,1);
+  S(rSum,2, C(sumC, sSum()));
+  S(rSum,3, C(sumD, sSum()));
+  S(rSum,4, C(sumE, sSum()));
+  S(rSum,5, C(sumF, sSum()));
+  S(rSum,6, C(sumG, sSum()));
+  S(rSum,7, C(sumH, sSum()));
 
-  // TOTAL row
+  // ── TOTAL row ────────────────────────────────────────────────────────────────
+  // "ລວມຈ່າຍທັງໝົດ" label (A-B), grand total = sum of all 5 data cols (C-E merge)
   const rTot  = rSum + 1;
-  const grand = sumC + sumD + sumE + sumF + sumG + sumH;
-  S(rTot,0, C("ລວມຈ່າຍທັງໝົດ", sTotalLabel())); S(rTot,1, CE(sTotalLabel()));
-  S(rTot,2, C(grand, sTotalValue())); S(rTot,3, CE(sTotalValue())); S(rTot,4, CE(sTotalValue()));
+  const grand = sumC + sumD + sumE + sumF + sumG;
+  S(rTot,0, C("ລວມຈ່າຍທັງໝົດ", sTotalLabel())); S(rTot,1, CE(sTotalLabel())); M(rTot,0, rTot,1);
+  S(rTot,2, C(grand, sTotalValue()));
+  S(rTot,3, CE(sTotalLabel())); S(rTot,4, CE(sTotalLabel()));
+  M(rTot,2, rTot,4);
   for (let c=5; c<=LAST_COL; c++) S(rTot,c, CE(sTotalLabel()));
-  M(rTot,0, rTot,1); M(rTot,2, rTot,4);
 
-  // Other items rows
-  let rOther = rTot + 1;
-  for (const oth of otherItems) {
-    const label = `[${oth.TXN_TYPE}] ${oth.BANK_DESCRIPTION} (${oth.BANK_DATE})`;
-    const oBg: CellStyle = { font:{name:FONT,sz:10}, fill:{patternType:"solid",fgColor:{rgb:BG_OTHER}}, border:allThin() };
-    S(rOther,0, CE(oBg));
-    S(rOther,1, C(label, sOtherLabel()));
-    for (let c=2; c<=8; c++) S(rOther,c, CE(oBg));
-    S(rOther,9, C(oth.BANK_DR, sOtherValue()));
-    M(rOther,1, rOther,8);
-    rOther++;
-  }
-
-  // Signature row
-  const rSig = rOther + 2;
+  // ── Signature rows ───────────────────────────────────────────────────────────
+  const rSig = rTot + 3;
   const sSig: CellStyle = { font:{name:FONT,sz:11}, alignment:{horizontal:"center"} };
-  S(rSig,7, C("ຜູ້ສະຫຼຸບ", sSig));
+  S(rSig,2, C("ຜູ້ກວດກາ",  sSig));
+  S(rSig,5, C("ຜູ້ສະຫຼຸບ", sSig));
 
-  // Column widths
+  // ── Column widths ────────────────────────────────────────────────────────────
+  //  A     B      C      D      E      F      G      H
   ws["!cols"] = [
-    {wch:5.86},{wch:12.29},{wch:18.71},{wch:14.71},{wch:17.57},
-    {wch:17.43},{wch:16.14},{wch:18.43},{wch:18.29},{wch:17.00},
+    {wch:6}, {wch:11}, {wch:18}, {wch:16}, {wch:14}, {wch:18}, {wch:16}, {wch:14},
   ];
   ws["!rows"] = [
-    {hpt:15.0},{hpt:15.0},{hpt:15.75},{hpt:15.0},
-    {hpt:29.25},{hpt:28.5},
-    ...Array.from({length:totalDataRows}, () => ({hpt:24.95})),
-    {hpt:35.25},{hpt:43.5},
-    ...Array.from({length:otherItems.length}, () => ({hpt:28.0})),
-    {hpt:15.0},{hpt:15.0},{hpt:18.0},
+    {hpt:15},{hpt:15},{hpt:16},{hpt:8},
+    {hpt:30},{hpt:30},
+    ...Array.from({length:totalRows}, () => ({hpt:20})),
+    {hpt:24},{hpt:32},
+    {hpt:15},{hpt:15},{hpt:20},
   ];
   ws["!merges"] = merges;
   ws["!ref"] = XLSXStyle.utils.encode_range({r:0,c:0}, {r:rSig,c:LAST_COL});
   return ws;
 }
 
-async function exportJdbReward(
-  rows:       JdbRow[],
-  taxItems:   JdbTaxRow[],
-  otherItems: JdbOtherRow[],
-  dateFrom:   string,
-  dateTo:     string,
+async function exportLdbReward(
+  rows:     LdbRow[],
+  taxItems: LdbTaxRow[],
+  dateFrom: string,
+  dateTo:   string,
 ): Promise<void> {
   const dataRows    = rows.filter(r => String(r["ງວດ"]) !== "ລວມທັງໝົດ");
   const dateDisplay = dateFrom === dateTo
     ? fmtDate(dateFrom)
     : `${fmtDate(dateFrom)} ຫາ ${fmtDate(dateTo)}`;
-  const ws = buildSheet(dateDisplay, dataRows, taxItems, otherItems);
+  const ws = buildSheet(dateDisplay, dataRows, taxItems);
   const wb = XLSXStyle.utils.book_new();
-  XLSXStyle.utils.book_append_sheet(wb, ws, (monthLabel(dateFrom) || "JDB Report").slice(0,31));
-  XLSXStyle.writeFile(wb, `JDB_Reward_${dateFrom||"all"}_to_${dateTo||"all"}.xlsx`);
+  XLSXStyle.utils.book_append_sheet(wb, ws, (monthLabel(dateFrom) || "LDB Report").slice(0,31));
+  XLSXStyle.writeFile(wb, `LDB_Reward_${dateFrom||"all"}_to_${dateTo||"all"}.xlsx`);
 }
 
-async function fetchJdbTax5Rows(dateFrom: string, dateTo: string): Promise<JdbTaxRow[]> {
-  const qs = new URLSearchParams({view:"jdb_tax5_items"});
+async function fetchLdbTaxRows(dateFrom: string, dateTo: string): Promise<LdbTaxRow[]> {
+  const qs = new URLSearchParams({view:"ldb_tax_reward_items"});
   if (dateFrom) qs.set("date_from", dateFrom);
   if (dateTo)   qs.set("date_to",   dateTo);
   const res  = await fetch(`/api/oracle?${qs}`);
   const json = await res.json();
-  if (!res.ok) throw new Error(json.error ?? "ດຶງ JDB Tax5 ລົ້ມເຫຼວ");
-  return Array.isArray(json.rows) ? json.rows : [];
-}
-
-async function fetchJdbOtherRows(dateFrom: string, dateTo: string): Promise<JdbOtherRow[]> {
-  const qs = new URLSearchParams({view:"jdb_other_items"});
-  if (dateFrom) qs.set("date_from", dateFrom);
-  if (dateTo)   qs.set("date_to",   dateTo);
-  const res  = await fetch(`/api/oracle?${qs}`);
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.error ?? "ດຶງ JDB Other Items ລົ້ມເຫຼວ");
+  if (!res.ok) throw new Error(json.error ?? "ດຶງ LDB Tax ລົ້ມເຫຼວ");
   return Array.isArray(json.rows) ? json.rows : [];
 }
 
@@ -306,7 +284,7 @@ async function fetchJdbOtherRows(dateFrom: string, dateTo: string): Promise<JdbO
 
 const PRINT_CSS = `
   @media print {
-    @page { size: A4 landscape; margin: 10mm 8mm 20mm 8mm; }
+    @page { size: A3 landscape; margin: 10mm 8mm 20mm 8mm; }
 
     @page {
       @bottom-center {
@@ -327,77 +305,45 @@ const PRINT_CSS = `
       font-family: 'Phetsarath OT', 'Phetsarath', sans-serif !important;
       color: #000 !important;
       box-shadow: none !important;
-      text-shadow: none !important;
-      border-radius: 0 !important;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
 
-    .print-area div {
-      border-radius: 0 !important;
-      overflow: visible !important;
-      box-shadow: none !important;
-      border: none !important;
-      background: #fff !important;
-      background-color: #fff !important;
-    }
-
     table {
-      font-size: 7.5px !important;
+      font-size: 7px !important;
       width: 100% !important;
       table-layout: fixed !important;
       border-collapse: collapse !important;
       border: 1px solid #000 !important;
-      box-shadow: none !important;
-      background: #fff !important;
     }
 
     th, td {
-      padding: 2px 3px !important;
-      font-size: 7.5px !important;
+      padding: 2px 2px !important;
+      font-size: 7px !important;
       white-space: nowrap !important;
       overflow: hidden !important;
       text-overflow: ellipsis !important;
       border: 1px solid #000 !important;
-      color: #000 !important;
-      background: #fff !important;
-      background-color: #fff !important;
-      box-shadow: none !important;
     }
 
-    thead tr th, thead th {
-      background: #d0d0d0 !important;
-      background-color: #d0d0d0 !important;
-      color: #000 !important;
+    thead tr th {
+      background: #a9d18e !important;
+      background-color: #a9d18e !important;
       font-weight: bold !important;
       text-align: center !important;
-      border: 1px solid #000 !important;
-    }
-
-    th.group-header {
-      background: #bdd7ee !important;
-      background-color: #bdd7ee !important;
     }
 
     tr.total-row td {
-      background: #d0d0d0 !important;
-      background-color: #d0d0d0 !important;
+      background: #a9d18e !important;
+      background-color: #a9d18e !important;
       font-weight: bold !important;
-      border: 1px solid #000 !important;
     }
 
     tr.grand-total-row td {
-      background: #bdd7ee !important;
-      background-color: #bdd7ee !important;
+      background: #c6efce !important;
+      background-color: #c6efce !important;
       font-weight: bold !important;
       border: 2px solid #000 !important;
-    }
-
-    tr.other-row td {
-      background: #fff2cc !important;
-      background-color: #fff2cc !important;
-      font-style: italic !important;
-      border: 1px solid #000 !important;
     }
 
     thead { display: table-header-group; }
@@ -426,14 +372,13 @@ const PRINT_CSS = `
 //  Component
 // ══════════════════════════════════════════════════════════════════════════════
 
-const isTotal = (row: JdbRow) => row["ງວດ"] === "ລວມທັງໝົດ";
+const isTotal = (row: LdbRow) => row["ງວດ"] === "ລວມທັງໝົດ";
 
-export default function JdbRewardSummaryPage() {
+export default function LdbRewardSummaryPage() {
   const [dateFrom,    setDateFrom]    = useState("");
   const [dateTo,      setDateTo]      = useState("");
-  const [rows,        setRows]        = useState<JdbRow[]>([]);
-  const [taxItems,    setTaxItems]    = useState<JdbTaxRow[]>([]);
-  const [otherItems,  setOtherItems]  = useState<JdbOtherRow[]>([]);
+  const [rows,        setRows]        = useState<LdbRow[]>([]);
+  const [taxItems,    setTaxItems]    = useState<LdbTaxRow[]>([]);
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
@@ -446,17 +391,15 @@ export default function JdbRewardSummaryPage() {
     setLoading(true);
     setError(null);
     try {
-      const qs = new URLSearchParams({view:"jdb_reward_summary"});
+      const qs = new URLSearchParams({view:"ldb_reward_summary"});
       if (from) qs.set("date_from", from);
       if (to)   qs.set("date_to",   to);
       const res  = await fetch(`/api/oracle?${qs}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "ດຶງຂໍ້ມູນລົ້ມເຫຼວ");
       setRows(Array.isArray(json.rows) ? json.rows : []);
-      const tax    = await fetchJdbTax5Rows(from, to);
-      const others = await fetchJdbOtherRows(from, to);
+      const tax = await fetchLdbTaxRows(from, to);
       setTaxItems(tax);
-      setOtherItems(others);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -475,7 +418,7 @@ export default function JdbRewardSummaryPage() {
     setDateFrom(""); setDateTo("");
     setAppliedFrom(""); setAppliedTo("");
     setHasSearched(false);
-    setRows([]); setTaxItems([]); setOtherItems([]); setError(null);
+    setRows([]); setTaxItems([]); setError(null);
   };
 
   const handlePrint = () => {
@@ -486,7 +429,7 @@ export default function JdbRewardSummaryPage() {
   const handleExport = async () => {
     setExporting(true);
     try {
-      await exportJdbReward(rows, taxItems, otherItems, appliedFrom, appliedTo);
+      await exportLdbReward(rows, taxItems, appliedFrom, appliedTo);
     } catch (e) {
       alert("Export ລົ້ມເຫຼວ: " + (e instanceof Error ? e.message : String(e)));
     } finally {
@@ -497,7 +440,10 @@ export default function JdbRewardSummaryPage() {
   const allDataRows = useMemo(() => rows.filter(r => !isTotal(r)), [rows]);
   const totalRow    = useMemo(() => rows.find(r => isTotal(r)),    [rows]);
 
-  const dataRows = useMemo(() => {
+  const parseN = (v: string | number | null | undefined) =>
+    parseFloat(String(v ?? "0").replace(/,/g, "")) || 0;
+
+  const mergedRows = useMemo(() => {
     const maxLen = Math.max(allDataRows.length, taxItems.length);
     return Array.from({length: maxLen}, (_, i) => ({
       row: allDataRows[i] ?? null,
@@ -505,30 +451,17 @@ export default function JdbRewardSummaryPage() {
       idx: i,
     })).filter(({row, tx}) => {
       const hasRow = row ? !!row["ງວດ"] : false;
-      const hasTx  = tx  ? tx.BANK_CR !== 0 : false;
+      const hasTx  = tx  ? tx.DEPOSIT !== 0 : false;
       return hasRow || hasTx;
     });
   }, [allDataRows, taxItems]);
 
-  const hasData   = hasSearched && (dataRows.length > 0 || otherItems.length > 0);
+  const hasData   = hasSearched && mergedRows.length > 0;
   const hasFilter = dateFrom || dateTo;
+  const tax5Total = useMemo(() => taxItems.reduce((s,t) => s + t.DEPOSIT, 0), [taxItems]);
 
-  const tax5Total = useMemo(() => taxItems.reduce((s,t) => s + t.BANK_CR, 0), [taxItems]);
-
-  const parseN = (v: string | number | null | undefined) =>
-    parseFloat(String(v ?? "0").replace(/,/g, "")) || 0;
-
-  const grandTotal = useMemo(() => {
-    if (!totalRow) return 0;
-    return (
-      parseN(totalRow["ລາງວັນ Sokxay"]) +
-      parseN(totalRow["ທຳນຽມ"]) +
-      parseN(totalRow["ໂຊກຊ້ອນໂຊກ"]) +
-      parseN(totalRow["ໂຊກ Spin"]) +
-      parseN(totalRow["ລາງວັນ SCN"]) +
-      parseN(totalRow["ໂຊກຊ້ອນໂຊກ SCN"])
-    );
-  }, [totalRow]);
+  const grandDebt = useMemo(() => totalRow ? parseN(totalRow["ລວມຫນີ້ທັງໝົດ"]) : 0, [totalRow]);
+  const grandCred = useMemo(() => totalRow ? parseN(totalRow["ລວມມີທັງໝົດ"])    : 0, [totalRow]);
 
   const fmt = (n: number) =>
     n.toLocaleString("en-US", {minimumFractionDigits:0, maximumFractionDigits:0});
@@ -540,10 +473,11 @@ export default function JdbRewardSummaryPage() {
     return fmt(n);
   };
 
-  const TH  = "px-2 py-2 text-center font-bold text-slate-700 whitespace-nowrap bg-orange-50 border border-black text-[10px]";
-  const THG = "px-2 py-2 text-center font-bold text-slate-700 whitespace-nowrap bg-blue-100 border border-black text-[10px]";
-  const TD  = "px-2 py-1.5 text-right font-mono border border-black text-[10px] whitespace-nowrap";
-  const TDC = "px-2 py-1.5 text-center font-mono border border-black text-[10px]";
+  const TH  = "px-1.5 py-2 text-center font-bold text-slate-700 whitespace-nowrap bg-green-50 border border-black text-[9px]";
+  const THG = "px-1.5 py-2 text-center font-bold text-slate-700 whitespace-nowrap bg-emerald-100 border border-black text-[9px]";
+  const TD  = "px-1.5 py-1.5 text-right font-mono border border-black text-[9px] whitespace-nowrap";
+  const TDC = "px-1.5 py-1.5 text-center font-mono border border-black text-[9px]";
+  const TDH = "px-1.5 py-1.5 text-right font-mono border border-black text-[9px] whitespace-nowrap bg-emerald-50";
 
   return (
     <>
@@ -553,14 +487,16 @@ export default function JdbRewardSummaryPage() {
         {/* ── Screen Header ──────────────────────────────────────────────── */}
         <div className="flex flex-wrap items-center justify-between gap-3 no-print">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center">
-              <BarChart3 size={18} className="text-orange-600" />
+            <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center">
+              <BarChart3 size={18} className="text-emerald-600" />
             </div>
             <div>
               <h1 className="text-base font-semibold text-slate-800">
-                ສະຫຼຸບລາງວັນ JDB — JDB_STMT
+                ສະຫຼຸບລາງວັນ LDB — LDB_STMT
               </h1>
-              <p className="text-xs text-slate-400">ຕາຕາລາງສະຫຼຸບຈ່າຍລາງວັນ ຈຳແນກຕາມງວດ</p>
+              <p className="text-xs text-slate-400">
+                ຕາຕາລາງສະຫຼຸບຈ່າຍລາງວັນ ຈຳແນກຕາມງວດ · ACCT_NO: 0302000010005221
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -569,7 +505,7 @@ export default function JdbRewardSummaryPage() {
                 <button
                   onClick={handleExport}
                   disabled={exporting}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-40 transition"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40 transition"
                 >
                   {exporting
                     ? <><RefreshCw size={13} className="animate-spin" /> ກຳລັງ Export...</>
@@ -579,7 +515,7 @@ export default function JdbRewardSummaryPage() {
                   onClick={handlePrint}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-700 text-white hover:bg-slate-800 transition"
                 >
-                  <Printer size={13} /> ພິມ A4
+                  <Printer size={13} /> ພິມ A3
                 </button>
               </>
             )}
@@ -587,31 +523,31 @@ export default function JdbRewardSummaryPage() {
         </div>
 
         {/* ── Filter ─────────────────────────────────────────────────────── */}
-        <div className="no-print bg-orange-50 border border-orange-200 rounded-xl p-4 flex flex-wrap items-end gap-3">
-          <div className="flex items-center gap-1.5 text-orange-700 font-semibold text-sm w-full mb-1">
+        <div className="no-print bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex flex-wrap items-end gap-3">
+          <div className="flex items-center gap-1.5 text-emerald-700 font-semibold text-sm w-full mb-1">
             <Filter size={14} /> ຕົວກອງຂໍ້ມູນ
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-slate-500 font-medium">ວັນທີ ຈາກ (BANK_TXN_DATE)</label>
+            <label className="text-xs text-slate-500 font-medium">ວັນທີ ຈາກ (DATE_TIME)</label>
             <input
               type="date" value={dateFrom}
               onChange={e => setDateFrom(e.target.value)}
-              className="px-3 py-2 text-sm border border-black rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+              className="px-3 py-2 text-sm border border-black rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-slate-500 font-medium">ວັນທີ ຫາ (BANK_TXN_DATE)</label>
+            <label className="text-xs text-slate-500 font-medium">ວັນທີ ຫາ (DATE_TIME)</label>
             <input
               type="date" value={dateTo}
               onChange={e => setDateTo(e.target.value)}
-              className="px-3 py-2 text-sm border border-black rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+              className="px-3 py-2 text-sm border border-black rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
             />
           </div>
           <div className="flex items-end gap-2">
             <button
               onClick={handleApply}
               disabled={loading}
-              className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-40 transition"
+              className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40 transition"
             >
               {loading
                 ? <><RefreshCw size={13} className="animate-spin" /> ກຳລັງໂຫຼດ...</>
@@ -643,6 +579,7 @@ export default function JdbRewardSummaryPage() {
             </div>
           </div>
         )}
+
         {/* ── Print Header ───────────────────────────────────────────────── */}
         <div className="hidden print:block mb-2">
           <div style={{display:"flex", flexDirection:"column", alignItems:"flex-start"}}>
@@ -667,7 +604,7 @@ export default function JdbRewardSummaryPage() {
             ສັນຕິພາບ ເອກະລາດ ປະຊາທິປະໄຕ ເອກະພາບ ວັດທະນາຖາວອນ
           </div>
           <h1 style={{fontSize:"14px", fontWeight:"bold", margin:"4px 0 0 0"}}>
-            ຕາຕາລາງສະຫຼຸບຈ່າຍລາງວັນ JDB
+            ຕາຕາລາງສະຫຼຸບຈ່າຍລາງວັນ LDB
           </h1>
           {(appliedFrom || appliedTo) && (
             <div style={{marginTop:"3px", fontSize:"10px", color:"#555"}}>
@@ -688,7 +625,7 @@ export default function JdbRewardSummaryPage() {
               <BarChart3 size={36} className="opacity-30" />
               <p className="text-sm">
                 ເລືອກວັນທີ ແລ້ວກົດ{" "}
-                <span className="font-semibold text-orange-600">ສະແດງຂໍ້ມູນ</span>
+                <span className="font-semibold text-emerald-600">ສະແດງຂໍ້ມູນ</span>
               </p>
             </div>
           ) : !hasData ? (
@@ -702,81 +639,81 @@ export default function JdbRewardSummaryPage() {
                 <thead>
                   <tr>
                     <th className={TH}  rowSpan={2}>ລຳດັບ</th>
-                    <th className={TH}  rowSpan={2}>ງວດທີ</th>
-                    <th className={THG} colSpan={4}>ການຈ່າຍລາງວັນແອັບ Sokxay</th>
-                    <th className={THG} colSpan={2}>ການຈ່າຍລາງວັນແອັບ SCN</th>
+                    <th className={TH}  rowSpan={2}>ງວດ</th>
+                    <th className={THG} colSpan={4}>ການຈ່າຍລາງວັນ Sokxay</th>
+                    <th className={THG} colSpan={5}>ຄ່າທຳນຽມ / FTR</th>
+                    <th className={TH}  rowSpan={2}>ລວມຫນີ້<br/>ທັງໝົດ</th>
+                    <th className={TH}  rowSpan={2}>ລວມມີ<br/>ທັງໝົດ</th>
                     <th className={TH}  rowSpan={2}>ອາກອນ 5%</th>
-                    <th className={TH}  rowSpan={2}>ຄ່າທຳນຽມ</th>
                   </tr>
                   <tr>
-                    <th className={TH}>ລາງວັນ</th>
+                    <th className={TH}>ລາງວັນ Sokxay</th>
                     <th className={TH}>ໂຊກຊ້ອນໂຊກ</th>
-                    <th className={TH}>ທຳນຽມ</th>
-                    <th className={TH}>ໂຊກ Spin</th>
-                    <th className={TH}>ລາງວັນ</th>
-                    <th className={TH}>ໂຊກຊ້ອນໂຊກ</th>
+                    <th className={TH}>Spin</th>
+                    <th className={TH}>ລາງວັນ SCN</th>
+                    <th className={TH}>LDB_FEE_REWARD_FTR</th>
+                    <th className={TH}>FTR</th>
+                    <th className={TH}>FTR_FEE</th>
+                    <th className={TH}>LDB_FEE_DEEPLINK</th>
+                    <th className={TH}>LDB_FEE_LOTTO_SELL</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {dataRows.map(({row, tx}, i) => (
-                    <tr key={i} className="hover:bg-orange-50">
+                  {mergedRows.map(({row, tx}, i) => (
+                    <tr key={i} className="hover:bg-emerald-50">
                       <td className={TDC}>{i + 1}</td>
-                      <td className={TDC + " text-orange-700 font-semibold"}>{row?.["ງວດ"] ?? ""}</td>
-                      <td className={TD}>{row ? fmtVal(row["ລາງວັນ Sokxay"])  : ""}</td>
-                      <td className={TD}>{row ? fmtVal(row["ໂຊກຊ້ອນໂຊກ"])     : ""}</td>
-                      <td className={TD}>{row ? fmtVal(row["ທຳນຽມ"])           : ""}</td>
-                      <td className={TD}>{row ? fmtVal(row["ໂຊກ Spin"])        : ""}</td>
-                      <td className={TD}>{row ? fmtVal(row["ລາງວັນ SCN"])       : ""}</td>
-                      <td className={TD}>{row ? fmtVal(row["ໂຊກຊ້ອນໂຊກ SCN"])  : ""}</td>
-                      <td className={TD}>{tx  ? fmtVal(tx.BANK_CR)              : ""}</td>
-                      <td className={TD}></td>
+                      <td className={TDC + " text-emerald-700 font-semibold"}>{row?.["ງວດ"] ?? ""}</td>
+                      <td className={TD}>{row ? fmtVal(row["ຈຳນວນລາງວັນ Sokxay"])  : ""}</td>
+                      <td className={TD}>{row ? fmtVal(row["ໂຊກຊ້ອນໂຊກ"])            : ""}</td>
+                      <td className={TD}>{row ? fmtVal(row["Spin"])                   : ""}</td>
+                      <td className={TD}>{row ? fmtVal(row["ລາງວັນ SCN"])              : ""}</td>
+                      <td className={TD}>{row ? fmtVal(row["LDB_FEE_REWARD_FTR"])     : ""}</td>
+                      <td className={TD}>{row ? fmtVal(row["FTR"])                    : ""}</td>
+                      <td className={TD}>{row ? fmtVal(row["FTR_FEE"])                : ""}</td>
+                      <td className={TD}>{row ? fmtVal(row["LDB_FEE_DEEPLINK"])       : ""}</td>
+                      <td className={TD}>{row ? fmtVal(row["LDB_FEE_LOTTO_SELL"])     : ""}</td>
+                      <td className={TDH}>{row ? fmtVal(row["ລວມຫນີ້ທັງໝົດ"])          : ""}</td>
+                      <td className={TDH}>{row ? fmtVal(row["ລວມມີທັງໝົດ"])            : ""}</td>
+                      <td className={TD}>{tx  ? fmtVal(tx.DEPOSIT)                    : ""}</td>
                     </tr>
                   ))}
 
                   {/* SUM row */}
                   {totalRow && (
-                    <tr className="total-row bg-gray-200 font-bold">
-                      <td className={TDC + " bg-gray-200 font-bold"} colSpan={2}>ລວມທັງໝົດ</td>
-                      <td className={TD + " bg-gray-200 font-bold"}>{fmtVal(totalRow["ລາງວັນ Sokxay"])}</td>
-                      <td className={TD + " bg-gray-200 font-bold"}>{fmtVal(totalRow["ໂຊກຊ້ອນໂຊກ"])}</td>
-                      <td className={TD + " bg-gray-200 font-bold"}>{fmtVal(totalRow["ທຳນຽມ"])}</td>
-                      <td className={TD + " bg-gray-200 font-bold"}>{fmtVal(totalRow["ໂຊກ Spin"])}</td>
-                      <td className={TD + " bg-gray-200 font-bold"}>{fmtVal(totalRow["ລາງວັນ SCN"])}</td>
-                      <td className={TD + " bg-gray-200 font-bold"}>{fmtVal(totalRow["ໂຊກຊ້ອນໂຊກ SCN"])}</td>
-                      <td className={TD + " bg-gray-200 font-bold"}>{fmtVal(tax5Total)}</td>
-                      <td className={TD + " bg-gray-200"}></td>
+                    <tr className="total-row bg-green-200 font-bold">
+                      <td className={TDC + " bg-green-200 font-bold"} colSpan={2}>ລວມທັງໝົດ</td>
+                      <td className={TD + " bg-green-200 font-bold"}>{fmtVal(totalRow["ຈຳນວນລາງວັນ Sokxay"])}</td>
+                      <td className={TD + " bg-green-200 font-bold"}>{fmtVal(totalRow["ໂຊກຊ້ອນໂຊກ"])}</td>
+                      <td className={TD + " bg-green-200 font-bold"}>{fmtVal(totalRow["Spin"])}</td>
+                      <td className={TD + " bg-green-200 font-bold"}>{fmtVal(totalRow["ລາງວັນ SCN"])}</td>
+                      <td className={TD + " bg-green-200 font-bold"}>{fmtVal(totalRow["LDB_FEE_REWARD_FTR"])}</td>
+                      <td className={TD + " bg-green-200 font-bold"}>{fmtVal(totalRow["FTR"])}</td>
+                      <td className={TD + " bg-green-200 font-bold"}>{fmtVal(totalRow["FTR_FEE"])}</td>
+                      <td className={TD + " bg-green-200 font-bold"}>{fmtVal(totalRow["LDB_FEE_DEEPLINK"])}</td>
+                      <td className={TD + " bg-green-200 font-bold"}>{fmtVal(totalRow["LDB_FEE_LOTTO_SELL"])}</td>
+                      <td className={TDH + " bg-green-200 font-bold"}>{fmtVal(totalRow["ລວມຫນີ້ທັງໝົດ"])}</td>
+                      <td className={TDH + " bg-green-200 font-bold"}>{fmtVal(totalRow["ລວມມີທັງໝົດ"])}</td>
+                      <td className={TD + " bg-green-200 font-bold"}>{fmtVal(tax5Total)}</td>
                     </tr>
                   )}
 
                   {/* Grand total row */}
-                  {totalRow && grandTotal > 0 && (
-                    <tr className="grand-total-row bg-blue-100 font-bold">
-                      <td className="px-3 py-2 text-left font-bold border border-black text-[11px] bg-blue-100" colSpan={2}>
-                        ລວມຈ່າຍທັງໝົດ
+                  {totalRow && grandDebt > 0 && (
+                    <tr className="grand-total-row bg-emerald-100 font-bold">
+                      <td className="px-3 py-2 text-left font-bold border border-black text-[10px] bg-emerald-100" colSpan={2}>
+                        ລວມຈ່າຍທັງໝົດ (ລວມຫນີ້)
                       </td>
-                      <td className="px-3 py-2 text-right font-mono font-bold border border-black text-[11px] bg-blue-100" colSpan={8}>
-                        {fmt(grandTotal)}
+                      <td className="px-3 py-2 text-right font-mono font-bold border border-black text-[11px] bg-emerald-100" colSpan={3}>
+                        {fmt(grandDebt)}
+                      </td>
+                      <td className="px-3 py-2 text-left font-bold border border-black text-[10px] bg-emerald-100" colSpan={2}>
+                        ລວມໄດ້ຮັບ (ລວມມີ)
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono font-bold border border-black text-[11px] bg-emerald-100" colSpan={7}>
+                        {fmt(grandCred)}
                       </td>
                     </tr>
                   )}
-
-                  {/* Other TXN_TYPE rows */}
-                  {otherItems.length > 0 && otherItems.map((oth, i) => (
-                    <tr key={`other-${i}`} className="other-row bg-yellow-50 italic">
-                      <td className={TDC + " bg-yellow-50 text-slate-400 text-[9px]"}></td>
-                      <td
-                        className="px-2 py-1.5 text-left border border-black text-[10px] bg-yellow-50 italic text-slate-600"
-                        colSpan={8}
-                      >
-                        <span className="font-semibold text-amber-700 mr-1">[{oth.TXN_TYPE}]</span>
-                        {oth.BANK_DESCRIPTION}
-                        <span className="text-[9px] text-slate-400 ml-1">({oth.BANK_DATE})</span>
-                      </td>
-                      <td className={TD + " bg-yellow-50 font-semibold text-amber-800"}>
-                        {fmtVal(oth.BANK_DR)}
-                      </td>
-                    </tr>
-                  ))}
                 </tbody>
               </table>
             </div>
