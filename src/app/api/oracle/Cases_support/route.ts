@@ -169,6 +169,24 @@ export async function POST(req: NextRequest) {
         data: result,
       });
     }
+    // -- getcasesbyuser --------------
+    if (action === "getcasesbyuser") {
+      const username = (fd.get("username") as string)?.trim();
+      if (!username)
+        // ✅ ເພີ່ມ ! ໜ້າ status
+        return NextResponse.json(
+          { success: false, message: "ຕ້ອງລະບຸ id, username ແລະ status" },
+          { status: 400 },
+        );
+
+      const result = await repo.getcasesbyuser(username);
+
+      return NextResponse.json({
+        success: true,
+        message: "ອັບເດດສຳເລັດ",
+        data: result,
+      });
+    }
 
     if (action === "log") {
       const case_id = (fd.get("case_id") as string)?.trim();

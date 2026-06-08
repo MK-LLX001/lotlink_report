@@ -131,3 +131,20 @@ export const useOffCaseMutation = () => {
     },
   });
 };
+
+export const useGetCaseByUserMutation = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userName }: { userName: string }) =>
+      casesService.GetCasesByUser(userName),
+
+    onSuccess: (res, { userName }) => {
+      if (res?.success) {
+        qc.invalidateQueries({ queryKey: CASES_SUPPORT_KEYS.list() });
+        qc.invalidateQueries({
+          queryKey: CASES_SUPPORT_KEYS.detail(String(userName)),
+        });
+      }
+    },
+  });
+};

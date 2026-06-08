@@ -12,7 +12,7 @@ import Modal_case_detail from "./COMPONENTS/MODALS/Modal_cases_detail";
 import type { DataTypeCases } from "../../app/CASES-LOTTO/types/Type_Cases";
 import { resolveImageSrc } from "@/app/utils/img_path";
 import { toast } from "react-toastify";
-
+import Modal_GetCasesByuser from "./COMPONENTS/MODALS/Modal_GetCasesByuser";
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
@@ -120,6 +120,7 @@ export default function CasesPage() {
 
   const [openModal, setOpenModal] = useState(false);
   const [editCase, setEditCase] = useState<DataTypeCases | null>(null);
+  const [showCases, setShowCases] = useState(false);
 
   // ── Query ──────────────────────────────────────────────────────────────────
 
@@ -217,13 +218,24 @@ export default function CasesPage() {
         <div className="text-sm text-slate-500 justify-center">
           Welcome, {user || "Guest"}
         </div>
-        <div className="text-sm text-slate-500">
+        <div className=" flex text-sm text-slate-500  gap-4 ">
           <button
             onClick={() => setOpenModal(true)}
             className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
           >
             + ສ້າງເຄສໃໝ່
           </button>
+          <button
+            onClick={() => setShowCases(true)}
+            className="inline-flex items-center justify-center rounded-xl bg-primary-777 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+          >
+            ເຄສທີສ້າງ
+          </button>
+
+          {/* ✅ Modal — render ກໍ່ຕໍ່ເມື່ອ showCases = true */}
+          {showCases && (
+            <Modal_GetCasesByuser onClose={() => setShowCases(false)} />
+          )}
         </div>
       </div>
 

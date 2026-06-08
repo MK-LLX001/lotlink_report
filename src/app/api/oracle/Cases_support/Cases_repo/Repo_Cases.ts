@@ -146,6 +146,20 @@ export class CasesRepo {
     );
     return { affected: result.affectedRows };
   }
+  // getcasesbyuser-----
+  async getcasesbyuser(username: string) {
+    const [result]: any = await mysqlPool.execute(
+      `SELECT *
+     FROM support_cases
+     WHERE assigned_to LIKE ?
+       AND status <> 'REMOVED'
+     ORDER BY
+       FIELD(priority, 'MAX-HIGH', 'HIGH', 'MEDIUM', 'LOW'),
+       created_at DESC`,
+      [`%${username}%`],
+    );
+    return result;
+  }
   // ── log — บันทึก datetime + user ─────────────────────────────────────────
 
   async log(case_id: string, username: string) {

@@ -85,6 +85,10 @@ export class CasesService {
   async log(case_id: string, username: string) {
     return this.post(this.buildForm("log", { case_id, username }));
   }
+
+  async GetCasesByUser(username: string) {
+    return this.post(this.buildForm("getcasesbyuser", { username }));
+  }
 }
 
 // singleton — import ใช้ได้เลย ไม่ต้อง new ทุกครั้ง
