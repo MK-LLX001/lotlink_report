@@ -5,41 +5,46 @@ import { LDB_Reconciliation } from "@/app/LDB_reconciliation/hooks";
 import { ReconTable } from "@/components/ReconTable";
 import axios from "axios";
 import ExportButtons from "@/lib/export_data";
-import { ToastContainer, toast } from 'react-toastify';
+import { ToastContainer, toast } from "react-toastify";
 import { getColDefs } from "@/lib/ldb_table_config";
 
-
 const ACCOUNTS = [
-  { value: "0302000010005221", label: "ບັນຊີຈ່າຍ",      sub: "0302000010005221" },
-  { value: "0302000010005944", label: "ບັນຊີຮັບ",       sub: "0302000010005944" },
-  { value: "LAK1354902360020", label: "Sokxay One Plus", sub: "LAK1354902360020" },
-  { value: "LAK1354903360020", label: "SCN Easy",        sub: "LAK1354903360020" },
+  { value: "0302000010005221", label: "ບັນຊີຈ່າຍ", sub: "0302000010005221" },
+  { value: "0302000010005944", label: "ບັນຊີຮັບ", sub: "0302000010005944" },
+  {
+    value: "LAK1354902360020",
+    label: "Sokxay One Plus",
+    sub: "LAK1354902360020",
+  },
+  { value: "LAK1354903360020", label: "SCN Easy", sub: "LAK1354903360020" },
 ];
 
 export default function Page() {
   const [dateFrom, setDateFrom] = useState("");
-  const [dateTo,   setDateTo]   = useState("");
-  const [account,  setAccount]  = useState("");
-  const [open,     setOpen]     = useState(false);
+  const [dateTo, setDateTo] = useState("");
+  const [account, setAccount] = useState("");
+  const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   const [queryParams, setQueryParams] = useState<{
     dateFrom: string;
-    dateTo:   string;
-    account:  string;
+    dateTo: string;
+    account: string;
   } | null>(null);
 
   const { data, isError, isSuccess, error, isFetching } = LDB_Reconciliation({
     dateFrom: queryParams?.dateFrom ?? "",
-    dateTo:   queryParams?.dateTo   ?? "",
-    account:  queryParams?.account  ?? "",
+    dateTo: queryParams?.dateTo ?? "",
+    account: queryParams?.account ?? "",
   });
-
+  console.log("data " + data);
   const errorMessage = axios.isAxiosError(error)
     ? error.code === "ECONNABORTED"
       ? "ໝົດເວລາການເຊື່ອມຕໍ່ (Timeout)"
-      : error.response?.data?.error ?? error.message
-    : error ? String(error) : "";
+      : (error.response?.data?.error ?? error.message)
+    : error
+      ? String(error)
+      : "";
 
   const selectedAccount = ACCOUNTS.find((a) => a.value === account);
   const rows = ((data as any)?.data ?? []) as Record<string, unknown>[];
@@ -72,7 +77,7 @@ export default function Page() {
 
   function handleSearch() {
     if (account === "") {
-     toast.error("ກະລຸນາເລືອກ account ຫນຶ່ງ");
+      toast.error("ກະລຸນາເລືອກ account ຫນຶ່ງ");
       return;
     }
     if (!canSearch) return;
@@ -87,11 +92,8 @@ export default function Page() {
   }
 
   return (
-  
     <div className="min-h-screen bg-gray-50 p-6">
-    
       <div className="mx-auto space-y-6">
-
         {/* ── Header ── */}
         <div className="flex items-center gap-3  pl-8">
           <div className="w-1 h-8 bg-blue-600 rounded-full" />
@@ -105,7 +107,6 @@ export default function Page() {
 
         {/* ── Filter Card ── */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-5">
-
           {/* Account buttons */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
@@ -119,9 +120,10 @@ export default function Page() {
                   className={`
                     flex flex-col items-start px-3 py-2.5 rounded-xl border text-left
                     transition-all duration-150 text-xl
-                    ${account === acc.value
-                      ? "border-blue-500 bg-blue-50 text-blue-700"
-                      : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                    ${
+                      account === acc.value
+                        ? "border-blue-500 bg-blue-50 text-blue-700"
+                        : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
                     }
                   `}
                 >
@@ -192,27 +194,50 @@ export default function Page() {
                 className={`
                   flex items-center gap-2 px-5 py-2 text-sm font-medium rounded-xl
                   transition-all duration-150
-                  ${canSearch && !isFetching
-                    ? "bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
-                    : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  ${
+                    canSearch && !isFetching
+                      ? "bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
+                      : "bg-gray-100 text-gray-400 cursor-not-allowed"
                   }
                 `}
               >
                 {isFetching ? (
                   <>
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10"
-                        stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    <svg
+                      className="w-4 h-4 animate-spin"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                      />
                     </svg>
                     ກຳລັງຄົ້ນຫາ...
                   </>
                 ) : (
                   <>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"
+                      />
                     </svg>
                     ຄົ້ນຫາ
                   </>
@@ -221,50 +246,68 @@ export default function Page() {
 
               {/* ── Export dropdown ── */}
               {searchResult.length > 0 && (
-  <div className="flex gap-2 items-center">
+                <div className="flex gap-2 items-center">
+                  {/* ── Print button — standalone ── */}
+                  <ExportButtons
+                    data={searchResult}
+                    cols={getColDefs(queryParams?.account ?? "")}
+                    printTitle={`LDB Reconciliation — ${selectedAccount?.label} | ${selectedAccount?.value} (${dateFrom} ຫາ ${dateTo})`}
+                    variant="print"
+                  />
 
-    {/* ── Print button — standalone ── */}
-    <ExportButtons
-      data={searchResult}
-      cols={getColDefs(queryParams?.account ?? "")}
-      printTitle={`LDB Reconciliation — ${selectedAccount?.label} | ${selectedAccount?.value} (${dateFrom} ຫາ ${dateTo})`}
-      variant="print"
-    />
-
-    {/* ── Download dropdown ── */}
-    <div className="relative" ref={menuRef}>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium
+                  {/* ── Download dropdown ── */}
+                  <div className="relative" ref={menuRef}>
+                    <button
+                      onClick={() => setOpen((v) => !v)}
+                      className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium
           rounded-xl border border-gray-200 bg-white text-gray-600
           hover:bg-gray-50 hover:border-gray-300 transition"
-      >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-        </svg>
-        Download
-        <svg className={`w-3 h-3 transition-transform ${open ? "rotate-180" : ""}`}
-          fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/>
-        </svg>
-      </button>
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                        />
+                      </svg>
+                      Download
+                      <svg
+                        className={`w-3 h-3 transition-transform ${open ? "rotate-180" : ""}`}
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </button>
 
-      {open && (
-        <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-100
-          rounded-xl shadow-lg z-10 p-2">
-          <ExportButtons
-            data={searchResult}
-            filename={`LDB_${queryParams?.account}_${dateFrom}_${dateTo}`}
-            cols={getColDefs(queryParams?.account ?? "")}
-            variant="download"
-          />
-        </div>
-      )}
-    </div>
-
-  </div>
-)}
+                    {open && (
+                      <div
+                        className="absolute right-0 mt-2 w-44 bg-white border border-gray-100
+          rounded-xl shadow-lg z-10 p-2"
+                      >
+                        <ExportButtons
+                          data={searchResult}
+                          filename={`LDB_${queryParams?.account}_${dateFrom}_${dateTo}`}
+                          cols={getColDefs(queryParams?.account ?? "")}
+                          variant="download"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -272,9 +315,18 @@ export default function Page() {
         {/* ── Hint ── */}
         {!queryParams && (
           <div className="flex items-center gap-2 text-sm text-gray-400 px-1">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
             ເລືອກຊ່ວງວັນທີ ແລ້ວກົດ "ຄົ້ນຫາ"
           </div>
@@ -282,11 +334,22 @@ export default function Page() {
 
         {/* ── Error ── */}
         {isError && (
-          <div className="bg-red-50 border border-red-100 text-red-600
-            text-sm px-4 py-3 rounded-xl flex items-start gap-2">
-            <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          <div
+            className="bg-red-50 border border-red-100 text-red-600
+            text-sm px-4 py-3 rounded-xl flex items-start gap-2"
+          >
+            <svg
+              className="w-4 h-4 mt-0.5 flex-shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
             <span>{errorMessage}</span>
           </div>
@@ -297,18 +360,28 @@ export default function Page() {
 
         {/* ── Empty state ── */}
         {queryParams && !isFetching && !isError && rows.length === 0 && (
-          <div className="bg-white rounded-2xl border border-gray-100
-            py-12 flex flex-col items-center gap-2 text-gray-400">
-            <svg className="w-8 h-8 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+          <div
+            className="bg-white rounded-2xl border border-gray-100
+            py-12 flex flex-col items-center gap-2 text-gray-400"
+          >
+            <svg
+              className="w-8 h-8 opacity-40"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
                 d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0
                 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0
-                01.293.707V19a2 2 0 01-2 2z"/>
+                01.293.707V19a2 2 0 01-2 2z"
+              />
             </svg>
             <p className="text-sm">ບໍ່ມີຂໍ້ມູນໃນຊ່ວງວັນທີທີ່ເລືອກ</p>
           </div>
         )}
-
       </div>
     </div>
   );

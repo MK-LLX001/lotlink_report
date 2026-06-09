@@ -213,6 +213,9 @@ function PageContent() {
     return (
       <div className="min-h-screen bg-slate-50 p-4 md:p-8">
         <div className="mx-auto max-w-5xl space-y-6">
+          <p className=" text-sm pl-5 text-slate-400">
+            ກະຮຸນາປ້ອມຂໍ້ມູນ ເລກເບີໂທສະລັບ ຫຼື UID ໃສ 9-8 ຕົວອັກສອນກະໄດ້
+          </p>
           <SearchBar {...searchBarProps} />
           <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-16 shadow-sm">
             <Search size={40} className="text-slate-300" />

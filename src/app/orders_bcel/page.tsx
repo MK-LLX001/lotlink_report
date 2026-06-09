@@ -177,6 +177,9 @@ function PageContent() {
     return (
       <div className="min-h-screen bg-slate-50 p-6">
         <div className="mx-auto max-w-7xl space-y-6">
+          <p className=" text-sm pl-5 text-slate-400">
+            ກະຮຸນາປ້ອມຂໍ້ມູນ ເລກບີນຫວຍ ຫຼື ເລກອ້າງອີງຊຳລະ ໃສ 9-8 ຕົວອັກສອນກະໄດ້
+          </p>
           <SearchBar
             value={inputValue}
             error={inputError}
@@ -188,8 +191,10 @@ function PageContent() {
             onSearch={handleSearch}
             onKeyDown={handleKeyDown}
           />
+
           <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-12 shadow-sm">
             <Search size={40} className="text-slate-300" />
+
             <p className="mt-4 text-sm text-slate-400">
               ໃສ່ລະຫັດເຄສແລ້ວກົດຄົ້ນຫາ
             </p>
