@@ -25,6 +25,7 @@ export const SPIN_KEYS = {
 
   order: (caseNumber: string) => [caseNumber] as const,
   stmt: (caseNumber: string) => ["spin", "stmt", caseNumber] as const,
+  refundPoints: (caseNumber: string) => ["spin", "refund-points", caseNumber] as const,
 };
 
 export const LDB_KEYS = {

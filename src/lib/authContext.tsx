@@ -6,7 +6,7 @@ import { auth, db } from "@/lib/firebase";
 import { getUserProfile, type AppUser, ADMIN_PERMISSIONS, DEFAULT_PERMISSIONS } from "@/lib/authService";
 import { subscribeToMenus, type AppMenu } from "@/lib/menuService";
 
-const IDLE_TIMEOUT_MS    = 20 * 60 * 1000; // 20 นาที ไม่มีการเคลื่อนไหว
+const IDLE_TIMEOUT_MS    = 8*20 * 60 * 1000; // 20 นาที ไม่มีการเคลื่อนไหว
 const SESSION_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 ชั่วโมง นับจาก login
 
 const IDLE_EVENTS = ["mousemove", "mousedown", "keydown", "touchstart", "scroll", "click"] as const;

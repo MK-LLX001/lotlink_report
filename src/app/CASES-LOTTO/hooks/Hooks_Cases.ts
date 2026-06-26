@@ -45,8 +45,8 @@ export const useCaseQuery = (id: string) =>
 export const useCreateCaseMutation = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ data, image }: { data: Case_Payload; image?: File }) =>
-      casesService.create(data, image),
+    mutationFn: ({ data, images }: { data: Case_Payload; images?: File[] }) =>
+      casesService.create(data, images),
     onSuccess: (res) => {
       if (res.success)
         qc.invalidateQueries({ queryKey: CASES_SUPPORT_KEYS.list() });
@@ -132,19 +132,25 @@ export const useOffCaseMutation = () => {
   });
 };
 
-export const useGetCaseByUserMutation = () => {
-  const qc = useQueryClient();
+// useGetCaseByUserReportMutation
+export const useGetCaseByUserReportMutation = () => {
   return useMutation({
-    mutationFn: ({ userName }: { userName: string }) =>
-      casesService.GetCasesByUser(userName),
-
-    onSuccess: (res, { userName }) => {
-      if (res?.success) {
-        qc.invalidateQueries({ queryKey: CASES_SUPPORT_KEYS.list() });
-        qc.invalidateQueries({
-          queryKey: CASES_SUPPORT_KEYS.detail(String(userName)),
-        });
-      }
-    },
+    mutationFn: ({
+      userName,
+      fromDate,
+      toDate,
+      problemType,
+    }: {
+      userName: string;
+      fromDate?: string;
+      toDate?: string;
+      problemType?: string;
+    }) =>
+      casesService.GetCasesByUserReport(
+        userName,
+        fromDate,
+        toDate,
+        problemType,
+      ),
   });
 };

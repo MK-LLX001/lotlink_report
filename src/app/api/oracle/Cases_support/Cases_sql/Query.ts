@@ -8,8 +8,10 @@ export const Insert_case_support = `
         priority,
         assigned_to,
         image_url,
+        cust_connect,
+        notes,
         created_at,
         updated_at,
         customer
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;

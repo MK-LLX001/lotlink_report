@@ -50,20 +50,18 @@ export class LDB_Repo {
     });
   }
 
-  async findByBillNumber_STMT(
-    BillNumber: string,
-  ): Promise<STMT_LDB_ENTITY | null> {
+  async findByBillNumber_STMT(BillNumber: string): Promise<STMT_LDB_ENTITY[]> {
+    // ✅ เปลี่ยนเป็น array
     return withConnection(async (conn) => {
       const result = await conn.execute(
         `select * from APP_V_LDB_STMT
-          WHERE BILLNUMBER = :BillNumber `,
+        WHERE BILLNUMBER = :BillNumber`,
         { BillNumber },
-        { outFormat: oracledb.OUT_FORMAT_OBJECT }, // ✅ ใช้ constant แทนตัวเลข 2
+        { outFormat: oracledb.OUT_FORMAT_OBJECT },
       );
 
-      // ✅ cast ที่ rows แทน generic บน execute (แก้ "Untyped function calls")
       const rows = result.rows as STMT_LDB_ENTITY[] | undefined;
-      return rows?.[0] ?? null;
+      return rows ?? []; // ✅ return [] แทน null
     });
   }
 

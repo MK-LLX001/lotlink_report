@@ -17,6 +17,8 @@ export type CreateCaseInput = {
   priority?: string;
   assigned_to?: string;
   customer?: string;
+  cust_connect?: string;
+  notes?: string;
   image_url: string | null;
 };
 
@@ -84,33 +86,73 @@ export class CasesRepo {
     };
   }
 
-  // ── findById — case เดียว ─────────────────────────────────────────────────
+  // ── findById — case เดียว (พ่วงรูปทั้งหมดมาด้วย) ──────────────────────────
 
   async findById(id: string): Promise<CaseItem | null> {
     const [rows]: any = await mysqlPool.execute(
       `SELECT * FROM support_cases WHERE id = ? AND status <> 'REMOVED' LIMIT 1`,
       [id],
     );
-    return rows?.[0] ?? null;
+    const caseRow = rows?.[0] ?? null;
+    if (!caseRow) return null;
+
+    const [images]: any = await mysqlPool.execute(
+      `SELECT id, image_url, created_at FROM case_images WHERE case_id = ? ORDER BY id ASC`,
+      [id],
+    );
+
+    return { ...caseRow, images: images ?? [] };
   }
 
-  // ── create ────────────────────────────────────────────────────────────────
+  // ── create — บันทึกเคส + รูปทุกรูป ในทรานแซกชันเดียวกัน ──────────────────
 
-  async create(data: CreateCaseInput) {
-    const [result]: any = await mysqlPool.execute(Insert_case_support, [
-      data.case_number ?? "",
-      data.problem_type ?? "",
-      data.error_type ?? "",
-      data.description ?? "",
-      data.status ?? "",
-      data.priority ?? "",
-      data.assigned_to ?? "",
-      data.image_url ?? null,
-      new Date(),
-      new Date(),
-      data.customer ?? "",
-    ]);
-    return { id: result.insertId, ...data };
+  async create(data: CreateCaseInput, imageUrls: string[] = []) {
+    // ขอ connection เฉพาะตัวจาก pool เพื่อคุม transaction
+    // (mysqlPool.execute ตรง ๆ แบบเดิมจะไม่อยู่ใน transaction เดียวกัน)
+    const conn = await mysqlPool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      // 1. INSERT เคสหลักก่อน เพื่อเอา insertId ไปผูกกับรูป
+      const [result]: any = await conn.execute(Insert_case_support, [
+        data.case_number ?? "",
+        data.problem_type ?? "",
+        data.error_type ?? "",
+        data.description ?? "",
+        data.status ?? "",
+        data.priority ?? "",
+        data.assigned_to ?? "",
+        data.image_url ?? null,
+        data.cust_connect ?? "",
+        data.notes ?? "",
+        new Date(),
+        new Date(),
+        data.customer ?? "",
+      ]);
+
+      const caseId = result.insertId;
+
+      // 2. INSERT รูปทุกรูปลง case_images โดยผูกกับ caseId ที่เพิ่งได้มา
+      if (imageUrls.length > 0) {
+        const placeholders = imageUrls.map(() => "(?, ?, NOW())").join(", ");
+        const values = imageUrls.flatMap((url) => [caseId, url]);
+        await conn.execute(
+          `INSERT INTO case_images (case_id, image_url, created_at) VALUES ${placeholders}`,
+          values,
+        );
+      }
+
+      // ทุกอย่างผ่าน → commit พร้อมกันทั้งสองคำสั่ง
+      await conn.commit();
+      return { id: caseId, ...data, images: imageUrls };
+    } catch (err) {
+      // ขั้นตอนไหนพัง → rollback ทั้งหมด ไม่มีเคสค้างไม่มีรูปแน่นอน
+      await conn.rollback();
+      throw err;
+    } finally {
+      // คืน connection กลับ pool เสมอ ไม่ว่าจะสำเร็จหรือพัง
+      conn.release();
+    }
   }
 
   // ── update ────────────────────────────────────────────────────────────────
@@ -131,35 +173,59 @@ export class CasesRepo {
   async softDelete(id: string, username: string) {
     const [result]: any = await mysqlPool.execute(
       `UPDATE support_cases SET status = 'REMOVED', remove_at = NOW(), remove_user = ? WHERE id = ?`,
-      [username, id], // ✅ username first, then id — matches the ? order
+      [username, id],
     );
     return { affected: result.affectedRows };
   }
+
   // softoffcases-----
   async softoffcases(id: string, username: string, status: string) {
-    console.log(status, username);
     const [result]: any = await mysqlPool.execute(
       `UPDATE support_cases 
-     SET status = ?, resolved_at = NOW(), close_user = ? 
-     WHERE case_number = ?`,
-      [status, username, id], // ✅ ຕ້ອງກົງກັບ ? ຕາມລຳດັບ
+       SET status = ?, resolved_at = NOW(), close_user = ? 
+       WHERE case_number = ?`,
+      [status, username, id],
     );
     return { affected: result.affectedRows };
   }
+
   // getcasesbyuser-----
-  async getcasesbyuser(username: string) {
+  // repo เพิ่ม method นี้
+  async getcasesbyuserreport(
+    username: string,
+    from_date?: string,
+    to_date?: string,
+    problem_type?: string,
+  ) {
+    const conditions: string[] = ["assigned_to LIKE ?", "status <> 'REMOVED'"];
+    const params: unknown[] = [`%${username}%`];
+
+    if (from_date) {
+      conditions.push("DATE(created_at) >= ?");
+      params.push(from_date);
+    }
+    if (to_date) {
+      conditions.push("DATE(created_at) <= ?");
+      params.push(to_date);
+    }
+    if (problem_type && problem_type !== "ALL") {
+      conditions.push("problem_type = ?");
+      params.push(problem_type);
+    }
+
+    const where = conditions.join(" AND ");
     const [result]: any = await mysqlPool.execute(
       `SELECT *
      FROM support_cases
-     WHERE assigned_to LIKE ?
-       AND status <> 'REMOVED'
+     WHERE ${where}
      ORDER BY
        FIELD(priority, 'MAX-HIGH', 'HIGH', 'MEDIUM', 'LOW'),
        created_at DESC`,
-      [`%${username}%`],
+      params as any,
     );
     return result;
   }
+
   // ── log — บันทึก datetime + user ─────────────────────────────────────────
 
   async log(case_id: string, username: string) {

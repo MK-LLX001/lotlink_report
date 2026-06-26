@@ -1,0 +1,6 @@
+-- เพิ่ม column cust_connect และ notes ใน table support_cases
+-- MySQL (XAMPP)
+
+ALTER TABLE support_cases
+    ADD COLUMN cust_connect VARCHAR(55) NULL AFTER PROMO_DATE,
+    ADD COLUMN notes        TEXT NULL AFTER cust_connect;

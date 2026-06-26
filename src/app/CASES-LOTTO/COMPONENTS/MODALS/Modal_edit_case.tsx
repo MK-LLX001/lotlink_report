@@ -9,39 +9,46 @@ interface Props {
 }
 
 const PROBLEM_TYPES = [
-  { value: "LOTTO_LDB",  label: "LOTTO-LDB" },
+  { value: "LOTTO_LDB", label: "LOTTO-LDB" },
   { value: "LOTTO_BCEL", label: "LOTTO-BCEL" },
-  { value: "LOTTO_JDB",  label: "LOTTO-JDB" },
-  { value: "SPIN",       label: "SPIN" },
-  { value: "POINT",      label: "POINT" },
-  { value: "TOP-UP",     label: "TOP-UP" },
-  { value: "AIRLINE",    label: "AIRLINE" },
-  { value: "OTHER",      label: "ອື່ນໆ" },
+  { value: "LOTTO_JDB", label: "LOTTO-JDB" },
+  { value: "SPIN", label: "SPIN" },
+  { value: "P_NOT_REWARD", label: "ໃຊ້ຄະແນນຊື້ບໍ່ໄດ້ຮັບເງິນລາງວັນ" },
+  { value: "P_NOT_BILL", label: "ໃຊ້ຄະແນນຊື້ບໍ່ໄດ້ບີນ" },
+  { value: "TOP-UP", label: "TOP-UP" },
+  { value: "AIRLINE", label: "AIRLINE" },
+  { value: "WATER", label: "ນ້ຳປະປາ" },
+  { value: "EDL", label: "ໄຟຟ້າ" },
+  { value: "OTHER", label: "ອື່ນໆ" },
 ] as const;
 
 const ERROR_TYPES = [
-  { value: "NOT_REWARD",      label: "ບໍ່ໄດ້ຮັບເງິນລາງວັນ" },
-  { value: "NOT_BILL",        label: "ບໍ່ໄດ້ຮັບບິນ ຫຼື ບີນບໍ່ສະແດງ" },
-  { value: "NOT_TOP_UP",      label: "ບໍ່ໄດ້ຮັບມູນຄ່າໂທ" },
-  { value: "NOT_POINT",       label: "ບໍ່ໄດ້ຮັບຄະແນນ" },
+  { value: "NOT_REWARD", label: "ບໍ່ໄດ້ຮັບເງິນລາງວັນ" },
+  { value: "NOT_BILL", label: "ບໍ່ໄດ້ຮັບບິນ ຫຼື ບີນບໍ່ສະແດງ" },
+  { value: "NOT_TOP_UP", label: "ບໍ່ໄດ້ຮັບມູນຄ່າໂທ" },
+  { value: "NOT_POINT", label: "ບໍ່ໄດ້ຮັບຄະແນນ" },
   { value: "NOT_REWARD_SPIN", label: "ບໍ່ໄດ້ຮັບເງິນລາງວັນຈາກການ spin" },
-  { value: "P_NOTBILL",       label: "ໃຊ້ຄະແນນຊື້ເລກບໍ່ໄດ້ບີນ" },
-  { value: "NOT_SELECT_ACC",  label: "ບໍ່ສາມາດເລືອກບັນຊີຮັບລາງວັນ" },
-  { value: "OTHER",           label: "ອື່ນໆ" },
+  { value: "P_NOTBILL", label: "ໃຊ້ຄະແນນຊື້ເລກບໍ່ໄດ້ບີນ" },
+  { value: "ERROR", label: "ຈ່າຍບໍ່ສຳເລັດ" },
+  { value: "WRONG_PROVINCE", label: "ຈ່າຍຜິດແຂວງ" },
+  { value: "OVER_PAYMENT", label: "ຈ່າຍເງີນເກີນ" },
+  { value: "WRONG_NUMBER_KONGTER", label: "ຈ່າຍຜິດກົງເຕີ" },
+  { value: "NOT_SELECT_ACC", label: "ບໍ່ສາມາດເລືອກບັນຊີຮັບລາງວັນ" },
+  { value: "OTHER", label: "ອື່ນໆ" },
 ] as const;
 
 const STATUS_OPTIONS = [
-  { value: "ຫາກະແຈ້ງມາ",         label: "ຫາກະແຈ້ງມາ" },
-  { value: "ກຳລັງດຳເນີນ",        label: "ກຳລັງດຳເນີນ" },
+  { value: "ຫາກະແຈ້ງມາ", label: "ຫາກະແຈ້ງມາ" },
+  { value: "ກຳລັງດຳເນີນ", label: "ກຳລັງດຳເນີນ" },
   { value: "ລໍຂໍ້ມູນຈາກລູກຄ້າ", label: "ລໍຂໍ້ມູນຈາກລູກຄ້າ" },
-  { value: "ແກ້ໄຂແລ້ວ",          label: "ແກ້ໄຂແລ້ວ" },
-  { value: "ປິດເຄສສຳເລັດແລ້ວ",   label: "ປິດເຄສສຳເລັດແລ້ວ" },
+  { value: "ແກ້ໄຂແລ້ວ", label: "ແກ້ໄຂແລ້ວ" },
+  { value: "ປິດເຄສສຳເລັດແລ້ວ", label: "ປິດເຄສສຳເລັດແລ້ວ" },
 ] as const;
 
 const PRIORITY_OPTIONS = [
-  { value: "LOW",      label: "ບັນທົ່ວໄປ" },
-  { value: "MEDIUM",   label: "ລະດັບກາງ" },
-  { value: "HIGH",     label: "ສູງ" },
+  { value: "LOW", label: "ບັນທົ່ວໄປ" },
+  { value: "MEDIUM", label: "ລະດັບກາງ" },
+  { value: "HIGH", label: "ສູງ" },
   { value: "MAX-HIGH", label: "ສູງສຸດ" },
 ] as const;
 
@@ -67,31 +74,33 @@ const Modal_edit_case: React.FC<Props> = ({ data, onClose }) => {
   useEffect(() => {
     if (!data) return;
     setForm({
-      case_number:  data.case_number  || "",
+      case_number: data.case_number || "",
       problem_type: data.problem_type || "",
-      error_type:   data.error_type   || "",
-      description:  data.description  || "",
-      status:       data.status       || "",
-      priority:     data.priority     || "",
-      assigned_to:  data.assigned_to  || "",
-      customer:     data.customer     || "",
+      error_type: data.error_type || "",
+      description: data.description || "",
+      status: data.status || "",
+      priority: data.priority || "",
+      assigned_to: data.assigned_to || "",
+      customer: data.customer || "",
     });
   }, [data]);
 
   const isValid = useMemo(() => {
     return (
-      (form.case_number  || "").trim() !== "" &&
+      (form.case_number || "").trim() !== "" &&
       (form.problem_type || "").trim() !== "" &&
-      (form.error_type   || "").trim() !== "" &&
-      (form.description  || "").trim().length >= 3 &&
-      (form.status       || "").trim() !== "" &&
-      (form.priority     || "").trim() !== "" &&
-      (form.assigned_to  || "").trim() !== ""
+      (form.error_type || "").trim() !== "" &&
+      (form.description || "").trim().length >= 3 &&
+      (form.status || "").trim() !== "" &&
+      (form.priority || "").trim() !== "" &&
+      (form.assigned_to || "").trim() !== ""
     );
   }, [form]);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
   ) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
@@ -106,32 +115,39 @@ const Modal_edit_case: React.FC<Props> = ({ data, onClose }) => {
 
     // Convert the numeric ID to a string to match the hook's requirements
     mutate(
-      { 
-        id: String(data.id), 
-        data: form 
+      {
+        id: String(data.id),
+        data: form,
       },
       {
-        onSuccess: () => { 
-          toast.success("ແກ້ໄຂສຳເລັດ"); 
-          onClose(); 
+        onSuccess: () => {
+          toast.success("ແກ້ໄຂສຳເລັດ");
+          onClose();
         },
         onError: (err) => {
           toast.error(err instanceof Error ? err.message : "Update failed");
         },
-      }
+      },
     );
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
 
       <div className="relative z-10 w-full max-w-3xl overflow-hidden rounded-2xl bg-slate-50 shadow-2xl">
         {/* Header */}
         <div className="flex items-start justify-between border-b border-slate-200 bg-white px-6 py-5">
           <div>
-            <h2 className="text-xl font-bold text-slate-800">Edit Support Case</h2>
-            <p className="mt-1 text-sm text-slate-500">ແກ້ໄຂຂໍ້ມູນເຄສ — {data.case_number}</p>
+            <h2 className="text-xl font-bold text-slate-800">
+              Edit Support Case
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              ແກ້ໄຂຂໍ້ມູນເຄສ — {data.case_number}
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -145,10 +161,11 @@ const Modal_edit_case: React.FC<Props> = ({ data, onClose }) => {
         {/* Body */}
         <div className="max-h-[85vh] overflow-y-auto px-6 py-6">
           <div className="space-y-6">
-
             {/* Basic Info */}
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="mb-4 text-base font-bold text-slate-800">Basic Information</h3>
+              <h3 className="mb-4 text-base font-bold text-slate-800">
+                Basic Information
+              </h3>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div>
                   <label className={labelClass}>ລະຫັດເຄສ</label>
@@ -161,7 +178,9 @@ const Modal_edit_case: React.FC<Props> = ({ data, onClose }) => {
                   />
                 </div>
                 <div>
-                  <label className={labelClass}>ຂໍ້ມູນຕິດຕໍ່ ຫຼື ຊື່ລູກຄ້າ</label>
+                  <label className={labelClass}>
+                    ຂໍ້ມູນຕິດຕໍ່ ຫຼື ຊື່ລູກຄ້າ
+                  </label>
                   <input
                     name="customer"
                     value={form.customer || ""}
@@ -185,9 +204,10 @@ const Modal_edit_case: React.FC<Props> = ({ data, onClose }) => {
 
             {/* Case Details */}
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h3 className="mb-4 text-base font-bold text-slate-800">Case Details</h3>
+              <h3 className="mb-4 text-base font-bold text-slate-800">
+                Case Details
+              </h3>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-
                 <div>
                   <label className={labelClass}>ປະເພດຜະລິດຕະພັນ</label>
                   <select
@@ -196,9 +216,13 @@ const Modal_edit_case: React.FC<Props> = ({ data, onClose }) => {
                     onChange={handleChange}
                     className={inputClass}
                   >
-                    <option value="" disabled>-- ເລືອກປະເພດ --</option>
+                    <option value="" disabled>
+                      -- ເລືອກປະເພດ --
+                    </option>
                     {PROBLEM_TYPES.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -211,9 +235,13 @@ const Modal_edit_case: React.FC<Props> = ({ data, onClose }) => {
                     onChange={handleChange}
                     className={inputClass}
                   >
-                    <option value="" disabled>-- ເລືອກບັນຫາ --</option>
+                    <option value="" disabled>
+                      -- ເລືອກບັນຫາ --
+                    </option>
                     {ERROR_TYPES.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -226,9 +254,13 @@ const Modal_edit_case: React.FC<Props> = ({ data, onClose }) => {
                     onChange={handleChange}
                     className={inputClass}
                   >
-                    <option value="" disabled>-- ເລືອກລະດັບ --</option>
+                    <option value="" disabled>
+                      -- ເລືອກລະດັບ --
+                    </option>
                     {PRIORITY_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -241,9 +273,13 @@ const Modal_edit_case: React.FC<Props> = ({ data, onClose }) => {
                     onChange={handleChange}
                     className={inputClass}
                   >
-                    <option value="" disabled>-- ເລືອກສະຖານະ --</option>
+                    <option value="" disabled>
+                      -- ເລືອກສະຖານະ --
+                    </option>
                     {STATUS_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -259,10 +295,8 @@ const Modal_edit_case: React.FC<Props> = ({ data, onClose }) => {
                     className={`${inputClass} resize-none`}
                   />
                 </div>
-
               </div>
             </div>
-
           </div>
 
           {/* Error */}

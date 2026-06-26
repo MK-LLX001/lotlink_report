@@ -1,19 +1,23 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createPortal } from "react-dom";
-
+import Modal_Update_case from "../../COMPONENTS/MODALS/Modal_Update_case";
 import type { DataTypeCases } from "../../types/Type_Cases";
 import { ImageCell } from "@/app/utils/Preview_img";
 import { resolveImageSrc } from "@/app/utils/img_path";
+import { Edit3 } from "lucide-react";
+interface CaseImage {
+  id: number;
+  image_url: string;
+}
 
 interface Props {
   data: DataTypeCases | null;
   onClose: () => void;
 }
 
-// ✅ เพิ่ม passData: true ทุก route ที่ต้องการส่ง case data ไปด้วย
 const MENU_MAP: Record<
   string,
   { label: string; to: string; passData?: boolean }
@@ -38,6 +42,16 @@ const MENU_MAP: Record<
     to: "/CASES-LOTTO/COMPONENTS/SPIN/ORDERS",
     passData: true,
   },
+  P_NOT_REWARD: {
+    label: "ORDER-POINT",
+    to: "/CASES-LOTTO/COMPONENTS/BCEL-ONE/ORDERS",
+    passData: true,
+  },
+  P_NOT_BILL: {
+    label: "REFUND-POINT",
+    to: "/CASES-LOTTO/COMPONENTS/POINT",
+    passData: true,
+  },
 };
 
 const Modal_case_detail: React.FC<Props> = ({ data, onClose }) => {
@@ -50,6 +64,37 @@ const Modal_case_detail: React.FC<Props> = ({ data, onClose }) => {
       }
     );
   }, [data?.problem_type]);
+
+  // ── ดึงรูปทั้งหมดจาก case_images ──────────────────────────────────────────
+  const [images, setImages] = useState<CaseImage[]>([]);
+  const [loadingImages, setLoadingImages] = useState(false);
+
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const isClosed = status === "ປິດເຄສສຳເລັດແລ້ວ";
+
+  useEffect(() => {
+    if (!data?.id) return;
+    setLoadingImages(true);
+    fetch(`/api/oracle/Cases_support?action=getById&id=${data.id}`)
+      .then((r) => r.json())
+      .then((res) => {
+        // res.data.images คือ array จาก case_images ที่ findById ดึงมา
+        const imgs: CaseImage[] = res?.data?.images ?? [];
+        // ถ้ายังไม่มีใน case_images เลย fallback ไปใช้ image_url เดิม
+        if (imgs.length === 0 && data.image_url) {
+          setImages([{ id: 0, image_url: data.image_url }]);
+        } else {
+          setImages(imgs);
+        }
+      })
+      .catch(() => {
+        // fetch ล้มเหลว — fallback ใช้ image_url เดิม
+        if (data.image_url) {
+          setImages([{ id: 0, image_url: data.image_url }]);
+        }
+      })
+      .finally(() => setLoadingImages(false));
+  }, [data?.id, data?.image_url]);
 
   if (!data) return null;
 
@@ -114,10 +159,8 @@ const Modal_case_detail: React.FC<Props> = ({ data, onClose }) => {
     </div>
   );
 
-  // ✅ Build href: ถ้า passData=true ให้แนบ query params ไปด้วย
   const buildHref = () => {
     if (!menu.to) return "";
-
     if (menu.passData) {
       const params = new URLSearchParams({
         case_number: data.case_number ?? "",
@@ -126,7 +169,6 @@ const Modal_case_detail: React.FC<Props> = ({ data, onClose }) => {
       });
       return `${menu.to}?${params.toString()}`;
     }
-
     return menu.to;
   };
 
@@ -146,7 +188,6 @@ const Modal_case_detail: React.FC<Props> = ({ data, onClose }) => {
                 <h2 className="text-lg font-bold text-slate-800 tracking-tight">
                   Case Detail Review
                 </h2>
-
                 <span className="text-[11px] bg-slate-100 text-slate-500 font-mono px-2 py-0.5 rounded-md border border-slate-200/40">
                   ID: {data.id}
                 </span>
@@ -155,7 +196,6 @@ const Modal_case_detail: React.FC<Props> = ({ data, onClose }) => {
                 ລາຍລະອຽດເຄສ ແລະ ຂໍ້ມູນລະບົບທັງໝົດຢ່າງຄົບຖ້ວນ
               </p>
             </div>
-
             <button
               onClick={onClose}
               className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-50 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
@@ -165,26 +205,73 @@ const Modal_case_detail: React.FC<Props> = ({ data, onClose }) => {
           </div>
 
           {/* Body */}
-          <div className="flex-1 overflow-y-auto bg-slate-50/50 p-6 space-y-6">
+          <div className="flex-1 overflow-y-auto bg-slate-50/50 p-4 space-y-6">
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              {/* Left: Image */}
+              {/* Left: Images */}
               <div className="lg:col-span-1 space-y-6">
                 <div className="rounded-xl border border-slate-100 bg-white p-5 shadow-sm sticky top-0">
-                  <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Attachment ຫຼັກຖານ
+                  <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                    <span>Attachment ຫຼັກຖານ</span>
+                    {images.length > 0 && (
+                      <span className="text-[10px] bg-blue-50 text-blue-500 border border-blue-100 px-2 py-0.5 rounded-full font-semibold">
+                        {images.length} ຮູບ
+                      </span>
+                    )}
                   </h3>
-                  {data.image_url ? (
-                    <div className="rounded-xl border border-slate-150 bg-slate-50/50 p-3 flex flex-col items-center justify-center min-h-[260px]">
-                      <ImageCell
-                        src={resolveImageSrc(data.image_url)}
-                        alt={data.case_number}
-                        className="w-full h-auto max-h-fit rounded-lg shadow-sm bg-white"
-                      />
-                      <p className="mt-3 text-center text-[11px] text-slate-400">
-                        ກົດທີ່ຮູບເພື່ອຂະຫຍາຍ / ຫຍໍ້
-                      </p>
+
+                  {/* Loading state */}
+                  {loadingImages && (
+                    <div className="flex h-40 items-center justify-center text-xs text-slate-400 gap-2">
+                      <svg
+                        className="h-4 w-4 animate-spin text-blue-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8v8z"
+                        />
+                      </svg>
+                      ກຳລັງໂຫລດຮູບ...
                     </div>
-                  ) : (
+                  )}
+
+                  {/* Images grid */}
+                  {!loadingImages && images.length > 0 && (
+                    <div
+                      className={`gap-2 ${images.length === 1 ? "flex flex-col" : "grid grid-cols-2"}`}
+                    >
+                      {images.map((img, i) => (
+                        <div
+                          key={img.id || i}
+                          className="rounded-xl border border-slate-150 bg-slate-50/50 p-2 flex flex-col items-center justify-center"
+                        >
+                          <ImageCell
+                            src={resolveImageSrc(img.image_url)}
+                            alt={`${data.case_number} รูป ${i + 1}`}
+                            className={`w-full rounded-lg shadow-sm bg-white ${images.length === 1 ? "h-auto max-h-fit" : "h-28 object-cover"}`}
+                          />
+                          {images.length === 1 && (
+                            <p className="mt-2 text-center text-[11px] text-slate-400">
+                              ກົດທີ່ຮູບເພື່ອຂະຫຍາຍ / ຫຍໍ້
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Empty state */}
+                  {!loadingImages && images.length === 0 && (
                     <div className="flex h-64 flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50/50 text-slate-400 gap-2">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -214,7 +301,7 @@ const Modal_case_detail: React.FC<Props> = ({ data, onClose }) => {
                 <div className="rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
                   <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-slate-50 pb-3.5">
                     <h3 className="text-base font-bold text-slate-800 mr-2">
-                      {data.case_number}
+                      ລະຫັດເຄສ: {data.case_number}
                     </h3>
                     <span
                       className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${getStatusClass(data.status)}`}
@@ -227,11 +314,7 @@ const Modal_case_detail: React.FC<Props> = ({ data, onClose }) => {
                       {data.priority}
                     </span>
                   </div>
-                  <div className="space-y-1">
-                    <InfoRow
-                      label="ລະຫັດເຄສ (Case Number)"
-                      value={data.case_number}
-                    />
+                  <div className="space-y-1 grid grid-cols-2">
                     <InfoRow
                       label="ຂໍ້ມູນລູກຄ້າ (Customer)"
                       value={data.customer}
@@ -248,16 +331,10 @@ const Modal_case_detail: React.FC<Props> = ({ data, onClose }) => {
                       label="ພະນັກງານຮັບຜິດຊອບ"
                       value={data.assigned_to}
                     />
-                  </div>
-                </div>
-
-                {/* Description */}
-                <div className="rounded-xl border border-slate-100 bg-white p-5 shadow-sm">
-                  <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">
-                    ລາຍລະອຽດບັນຫາ (Description)
-                  </h3>
-                  <div className="whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/60 p-4 text-sm leading-7 text-slate-600 font-medium">
-                    {data.description || "- No description provided -"}
+                    <InfoRow
+                      label="ຊອງທາງລູກຄ້າຕິດຕໍ່"
+                      value={data.cust_connect}
+                    />
                   </div>
                 </div>
 
@@ -266,7 +343,7 @@ const Modal_case_detail: React.FC<Props> = ({ data, onClose }) => {
                   <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">
                     Timeline & History
                   </h3>
-                  <div className="space-y-1">
+                  <div className="space-y-1 grid grid-cols-2">
                     <InfoRow
                       label="ວັນທີສ້າງເຄສ"
                       value={formatDate(data.created_at)}
@@ -280,6 +357,24 @@ const Modal_case_detail: React.FC<Props> = ({ data, onClose }) => {
                       value={formatDate(data.resolved_at)}
                     />
                     <InfoRow label="ພະນັກງານປິດເຄສ" value={data.close_user} />
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div className="rounded-xl border border-slate-100 bg-white p-2 shadow-sm">
+                  <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">
+                    ລາຍລະອຽດບັນຫາ (Description)
+                  </h3>
+                  <div className="whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/60 p-4 text-sm leading-7 text-slate-600 font-medium">
+                    {data.description || "- No description provided -"}
+                  </div>
+                </div>
+                <div className="rounded-xl border border-slate-100 bg-white p-2 shadow-sm">
+                  <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">
+                    ບັນທຶກ (Notes)
+                  </h3>
+                  <div className="whitespace-pre-wrap rounded-xl border border-slate-100 bg-slate-50/60 p-4 text-sm leading-7 text-slate-600 font-medium">
+                    {data.notes || "- No notes provided -"}
                   </div>
                 </div>
 
@@ -318,7 +413,6 @@ const Modal_case_detail: React.FC<Props> = ({ data, onClose }) => {
           <div className="flex flex-col-reverse gap-3 border-t border-slate-100 bg-white px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               {menu.to ? (
-                // ✅ ใช้ buildHref() แทน — ส่ง query params อัตโนมัติถ้า passData=true
                 <Link
                   href={buildHref()}
                   className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700"
@@ -350,14 +444,39 @@ const Modal_case_detail: React.FC<Props> = ({ data, onClose }) => {
               )}
             </div>
 
-            <button
-              onClick={onClose}
-              className="rounded-xl bg-slate-800 px-6 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-900"
-            >
-              Close
-            </button>
+            <div className=" flex justify-center gap-3 ">
+              {(data.problem_type === "WATER" ||
+                data.problem_type === "EDL") && (
+                <button
+                  type="button"
+                  onClick={() => setIsUpdateModalOpen(true)}
+                  disabled={isClosed}
+                  className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-md transition-all active:scale-95 ${
+                    isClosed
+                      ? "cursor-not-allowed bg-slate-200 text-slate-400 shadow-none"
+                      : "bg-blue-600 hover:bg-blue-500 shadow-blue-600/10"
+                  }`}
+                >
+                  <Edit3 size={14} />
+                  ອັບເດດສະຖານະເຄສ
+                </button>
+              )}
+
+              <button
+                onClick={onClose}
+                className="rounded-xl bg-slate-800 px-6 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-900"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
+
+        <Modal_Update_case
+          isOpen={isUpdateModalOpen}
+          onClose={() => setIsUpdateModalOpen(false)}
+          caseNumber={data.case_number || ""}
+        />
       </div>
     </>,
     document.body,

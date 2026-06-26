@@ -12,7 +12,7 @@ import Modal_case_detail from "./COMPONENTS/MODALS/Modal_cases_detail";
 import type { DataTypeCases } from "../../app/CASES-LOTTO/types/Type_Cases";
 import { resolveImageSrc } from "@/app/utils/img_path";
 import { toast } from "react-toastify";
-import Modal_GetCasesByuser from "./COMPONENTS/MODALS/Modal_GetCasesByuser";
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
@@ -112,15 +112,11 @@ export default function CasesPage() {
   const [caseFilter, setCaseFilter] = useState<CaseFilter>(CASE_FILTER.ALL);
   const [selectedCase, setSelectedCase] = useState<DataTypeCases | null>(null);
 
-  // ✅ Fix 1: type must be DataTypeCases | null, not just id
-  const [confirmDelete, setConfirmDelete] = useState<DataTypeCases | null>(
-    null,
-  );
+  const [confirmDelete, setConfirmDelete] = useState<DataTypeCases | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const [openModal, setOpenModal] = useState(false);
   const [editCase, setEditCase] = useState<DataTypeCases | null>(null);
-  const [showCases, setShowCases] = useState(false);
 
   // ── Query ──────────────────────────────────────────────────────────────────
 
@@ -187,7 +183,6 @@ export default function CasesPage() {
     try {
       setDeletingId(confirmDelete.id);
 
-      // ✅ Fix 2: convert id to string to match mutationFn type
       await removeCase({
         id: String(confirmDelete.id),
         username: user ?? "Unknown",
@@ -218,24 +213,22 @@ export default function CasesPage() {
         <div className="text-sm text-slate-500 justify-center">
           Welcome, {user || "Guest"}
         </div>
-        <div className=" flex text-sm text-slate-500  gap-4 ">
+        <div className="flex text-sm text-slate-500 gap-4">
           <button
             onClick={() => setOpenModal(true)}
             className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
           >
             + ສ້າງເຄສໃໝ່
           </button>
-          <button
-            onClick={() => setShowCases(true)}
-            className="inline-flex items-center justify-center rounded-xl bg-primary-777 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-          >
-            ເຄສທີສ້າງ
-          </button>
-
-          {/* ✅ Modal — render ກໍ່ຕໍ່ເມື່ອ showCases = true */}
-          {showCases && (
-            <Modal_GetCasesByuser onClose={() => setShowCases(false)} />
-          )}
+          
+          <a
+              href="/CASES-LOTTO/COMPONENTS/MODALS/REPORT" 
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center rounded-xl bg-slate-800 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700"
+            >
+              ເບິ່ງເຄສທັງໝົດ
+            </a>
         </div>
       </div>
 
@@ -448,7 +441,6 @@ export default function CasesPage() {
                                 </button>
 
                                 {/* ລົບ */}
-                                {/* ✅ Fix 3: pass full item object, not just item.id */}
                                 <button
                                   className="inline-flex items-center justify-center rounded-lg border border-red-100 bg-red-50 p-1.5 text-red-400 transition hover:bg-red-100 hover:text-red-600 active:scale-95"
                                   onClick={() =>
@@ -535,7 +527,7 @@ export default function CasesPage() {
         />
       )}
 
-      {/* ✅ Confirm Delete Dialog */}
+      {/* Confirm Delete Dialog */}
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">

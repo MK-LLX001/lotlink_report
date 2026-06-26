@@ -40,14 +40,14 @@ export class CasesService {
   private buildForm(
     action: string,
     fields: Record<string, string | undefined | null>,
-    image?: File,
+    images?: File[],
   ): FormData {
     const fd = new FormData();
     fd.append("action", action);
     Object.entries(fields).forEach(([k, v]) => {
       if (v != null) fd.append(k, String(v));
     });
-    if (image) fd.append("image", image);
+    images?.forEach((file) => fd.append("images", file));
     return fd;
   }
 
@@ -61,8 +61,8 @@ export class CasesService {
 
   // ── create ─────────────────────────────────────────────────────────────────
 
-  async create(data: Case_Payload, image?: File) {
-    return this.post(this.buildForm("create", { ...data }, image));
+  async create(data: Case_Payload, images?: File[]) {
+    return this.post(this.buildForm("create", { ...data }, images));
   }
 
   // ── update ─────────────────────────────────────────────────────────────────
@@ -86,8 +86,21 @@ export class CasesService {
     return this.post(this.buildForm("log", { case_id, username }));
   }
 
-  async GetCasesByUser(username: string) {
-    return this.post(this.buildForm("getcasesbyuser", { username }));
+  // ใน CasesService class
+  async GetCasesByUserReport(
+    username: string,
+    from_date?: string,
+    to_date?: string,
+    problem_type?: string,
+  ) {
+    return this.post(
+      this.buildForm("getcasesbyuserreport", {
+        username,
+        from_date,
+        to_date,
+        problem_type,
+      }),
+    );
   }
 }
 

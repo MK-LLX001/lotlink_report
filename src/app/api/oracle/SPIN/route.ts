@@ -54,6 +54,60 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, data: row });
     }
 
+    if (action === "RefundPoints") {
+      const caseNumber = p.get("caseNumber")?.trim();
+
+      if (!caseNumber) {
+        return NextResponse.json(
+          { success: false, message: "ຕ້ອງລະບຸ caseNumber" },
+          { status: 400 },
+        );
+      }
+
+      const row = await repo.findByIdRefundPoints(caseNumber);
+
+      if (!row) {
+        return NextResponse.json(
+          { success: false, message: `ບໍ່ພົບຂໍ້ມູນ caseNumber: ${caseNumber}` },
+          { status: 404 },
+        );
+      }
+
+      return NextResponse.json({ success: true, data: row });
+    }
+
+    if (action === "winner") {
+      const fromDate = p.get("fromDate")?.trim();
+      const toDate = p.get("toDate")?.trim();
+      const amount = p.get("amount")?.trim();
+
+      // validate
+      if (!fromDate || !toDate || !amount) {
+        return NextResponse.json(
+          { success: false, message: "ຕ້ອງລະບຸ fromDate, toDate ແລະ amount" },
+          { status: 400 },
+        );
+      }
+
+      if (isNaN(Number(amount))) {
+        return NextResponse.json(
+          { success: false, message: "amount ຕ້ອງເປັນຕົວເລກ" },
+          { status: 400 },
+        );
+      }
+
+      const rows = await repo.findByIdWinner(fromDate, toDate, amount);
+
+      if (!rows.length) {
+        return NextResponse.json(
+          { success: false, message: "ບໍ່ພົບຂໍ້ມູນ" },
+          { status: 404 },
+        );
+      }
+
+      return NextResponse.json({ success: true, data: rows });
+    }
+
     // action ไม่รู้จัก
     return NextResponse.json(
       {

@@ -20,6 +20,12 @@ export type CaseItem = {
   image_url?: string | null;
   created_at: string;
   updated_at: string;
+  cust_connect?: string | null;
+  notes?: string | null;
+  resolved_at?: string | null;
+  close_user?: string | null;
+  remove_at?: string | null;
+  remove_user?: string | null;
 };
 
 // ─── API response ─────────────────────────────────────────────────────────────
@@ -51,6 +57,8 @@ export type DataTypeCases = {
   close_user: string | null;
   remove_at: string | null;
   remove_user: string | null;
+  cust_connect: string | null;
+  notes: string | null;
 };
 
 export type Case_Payload = {
@@ -62,4 +70,6 @@ export type Case_Payload = {
   priority: string;
   assigned_to: string;
   customer: string;
+  cust_connect: string;
+  notes: string;
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useCreateCaseMutation } from "../../hooks/Hooks_Cases";
 import type { Case_Payload } from "../../types/Type_Cases";
 import { useAuth } from "@/lib/authContext";
@@ -16,9 +16,12 @@ const PROBLEM_TYPES = [
   { value: "LOTTO_BCEL", label: "LOTTO-BCEL" },
   { value: "LOTTO_JDB", label: "LOTTO-JDB" },
   { value: "SPIN", label: "SPIN" },
-  { value: "POINT", label: "POINT" },
+  { value: "P_NOT_REWARD", label: "ໃຊ້ຄະແນນຊື້ບໍ່ໄດ້ຮັບເງິນລາງວັນ" },
+  { value: "P_NOT_BILL", label: "ໃຊ້ຄະແນນຊື້ບໍ່ໄດ້ບີນ" },
   { value: "TOP-UP", label: "TOP-UP" },
   { value: "AIRLINE", label: "AIRLINE" },
+  { value: "WATER", label: "ນ້ຳປະປາ" },
+  { value: "EDL", label: "ໄຟຟ້າ" },
   { value: "OTHER", label: "ອື່ນໆ" },
 ] as const;
 
@@ -29,6 +32,10 @@ const ERROR_TYPES = [
   { value: "NOT_POINT", label: "ບໍ່ໄດ້ຮັບຄະແນນ" },
   { value: "NOT_REWARD_SPIN", label: "ບໍ່ໄດ້ຮັບເງິນລາງວັນຈາກການ spin" },
   { value: "P_NOTBILL", label: "ໃຊ້ຄະແນນຊື້ເລກບໍ່ໄດ້ບີນ" },
+  { value: "ERROR", label: "ຈ່າຍບໍ່ສຳເລັດ" },
+  { value: "WRONG_PROVINCE", label: "ຈ່າຍຜິດແຂວງ" },
+  { value: "OVER_PAYMENT", label: "ຈ່າຍເງີນເກີນ" },
+  { value: "WRONG_NUMBER_KONGTER", label: "ຈ່າຍຜິດກົງເຕີ" },
   { value: "NOT_SELECT_ACC", label: "ບໍ່ສາມາດເລືອກບັນຊີຮັບລາງວັນ" },
   { value: "OTHER", label: "ອື່ນໆ" },
 ] as const;
@@ -39,6 +46,18 @@ const STATUS_OPTIONS = [
   { value: "ລໍຂໍ້ມູນຈາກລູກຄ້າ", label: "ລໍຂໍ້ມູນຈາກລູກຄ້າ" },
   { value: "ແກ້ໄຂແລ້ວ", label: "ແກ້ໄຂແລ້ວ" },
   { value: "ປິດເຄສສຳເລັດແລ້ວ", label: "ປິດເຄສສຳເລັດແລ້ວ" },
+] as const;
+const CUST_CONNECT = [
+  { value: "WHATAPP", label: "WhatApp" },
+  { value: "FACEBOOK", label: "Facebook" },
+  { value: "TELEPHONE", label: "Telephone" },
+  { value: "2094495888", label: "2094495888" },
+  { value: "2091218844", label: "2091218844" },
+  { value: "2092088866", label: "2092088866" },
+  { value: "2091242288", label: "2091242288" },
+  { value: "2094453888", label: "2094453888" },
+  { value: "2057886658", label: "2057886658" },
+  { value: "OTHER", label: "ອື່ນໆ" },
 ] as const;
 
 const PRIORITY_OPTIONS = [
@@ -66,6 +85,9 @@ const PRIORITY_OPTIONS = [
 
 const DESC_MIN = 10;
 const DESC_MAX = 500;
+// Maximum number of attachment images allowed per case.
+// Bump this number (and update the backend / mutation hook) if you need a different cap.
+const MAX_IMAGES = 5;
 
 const getLabel = (
   options: readonly { value: string; label: string }[],
@@ -135,14 +157,22 @@ const Modal_create_cases: React.FC<Props> = ({ onClose }) => {
     problem_type: PROBLEM_TYPES[0].value,
     error_type: ERROR_TYPES[0].value,
     description: "",
+    notes: "",
     status: STATUS_OPTIONS[0].value,
+    cust_connect: CUST_CONNECT[0].value,
     priority: "MEDIUM",
     assigned_to: "",
     customer: "",
   });
 
-  const [image, setImage] = useState<File | undefined>(undefined);
-  const [preview, setPreview] = useState<string | null>(null);
+  // Each attachment keeps its File and preview URL together so they can
+  // never get out of sync with each other (this was the root cause of the
+  // "only one preview shows" bug).
+  type ImageItem = { id: string; file: File; preview: string };
+  const [imageItems, setImageItems] = useState<ImageItem[]>([]);
+  const imageItemsRef = useRef<ImageItem[]>(imageItems);
+  imageItemsRef.current = imageItems;
+
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [dragOver, setDragOver] = useState(false);
 
@@ -150,11 +180,14 @@ const Modal_create_cases: React.FC<Props> = ({ onClose }) => {
     setForm((prev) => ({ ...prev, assigned_to: prev.assigned_to || fullname }));
   }, [fullname]);
 
+  // Revoke all object URLs on unmount to avoid memory leaks.
   useEffect(() => {
     return () => {
-      if (preview) URL.revokeObjectURL(preview);
+      imageItemsRef.current.forEach((item) =>
+        URL.revokeObjectURL(item.preview),
+      );
     };
-  }, [preview]);
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -170,28 +203,53 @@ const Modal_create_cases: React.FC<Props> = ({ onClose }) => {
     if (name) setTouched((prev) => ({ ...prev, [name]: true }));
   };
 
-  const applyImage = (file: File) => {
-    if (preview) URL.revokeObjectURL(preview);
-    setImage(file);
-    setPreview(URL.createObjectURL(file));
+  // Accepts any number of files, filters non-images, and caps the total at MAX_IMAGES.
+  const applyImages = (files: File[]) => {
+    const imageFiles = files.filter((f) => f.type.startsWith("image/"));
+    if (imageFiles.length === 0) return;
+
+    const room = MAX_IMAGES - imageItems.length;
+    if (room <= 0) {
+      toast.warn(`ສາມາດອັບໂຫລດໄດ້ສູງສຸດ ${MAX_IMAGES} ຮູບ`);
+      return;
+    }
+
+    const accepted = imageFiles.slice(0, room);
+    if (imageFiles.length > accepted.length) {
+      toast.warn(`ສາມາດອັບໂຫລດໄດ້ສູງສຸດ ${MAX_IMAGES} ຮູບ, ບາງໄຟລ໌ຖືກຂ້າມໄປ`);
+    }
+
+    const newItems: ImageItem[] = accepted.map((file) => ({
+      id: `${file.name}-${file.lastModified}-${file.size}-${Math.random()
+        .toString(36)
+        .slice(2)}`,
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+
+    setImageItems((prev) => [...prev, ...newItems]);
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) applyImage(file);
+    const files = Array.from(e.target.files ?? []);
+    if (files.length) applyImages(files);
+    // allow re-selecting the same file(s) again later
+    e.target.value = "";
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith("image/")) applyImage(file);
+    const files = Array.from(e.dataTransfer.files ?? []);
+    if (files.length) applyImages(files);
   };
 
-  const removeImage = () => {
-    if (preview) URL.revokeObjectURL(preview);
-    setPreview(null);
-    setImage(undefined);
+  const removeImage = (id: string) => {
+    setImageItems((prev) => {
+      const target = prev.find((item) => item.id === id);
+      if (target) URL.revokeObjectURL(target.preview);
+      return prev.filter((item) => item.id !== id);
+    });
   };
 
   const descLen = form.description.trim().length;
@@ -204,13 +262,17 @@ const Modal_create_cases: React.FC<Props> = ({ onClose }) => {
     form.status.trim() !== "" &&
     form.priority.trim() !== "" &&
     form.customer.trim() !== "" &&
+    form.cust_connect.trim() !== "" &&
     form.assigned_to.trim() !== "";
 
   const handleSubmit = () => {
     setTouched({ case_number: true, customer: true, description: true });
     if (!isValid || isPending) return;
     mutate(
-      { data: form, image },
+      // NOTE: this now sends `images` (an array) instead of a single `image`.
+      // Make sure useCreateCaseMutation / the API endpoint is updated to accept
+      // an array of files (e.g. appended as images[] in the FormData).
+      { data: form, images: imageItems.map((item) => item.file) },
       {
         onSuccess: (response) => {
           if (response?.success) {
@@ -227,7 +289,7 @@ const Modal_create_cases: React.FC<Props> = ({ onClose }) => {
   };
 
   const handleClose = () => {
-    if (preview) URL.revokeObjectURL(preview);
+    imageItems.forEach((item) => URL.revokeObjectURL(item.preview));
     onClose();
   };
 
@@ -256,14 +318,19 @@ const Modal_create_cases: React.FC<Props> = ({ onClose }) => {
               </p>
             </div>
           </div>
-          <button
-            onClick={handleClose}
-            disabled={isPending}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-50"
-            aria-label="Close"
-          >
-            <X size={16} />
-          </button>
+          <div className="flex items-center gap-4 ">
+            <span className="text-sm flex  w-fit  text-slate-500 ">
+              ພະນັກງານຮັບເຄສ: {fullname}
+            </span>
+            <button
+              onClick={handleClose}
+              disabled={isPending}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-50"
+              aria-label="Close"
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
         {/* ── Body ── */}
@@ -314,13 +381,19 @@ const Modal_create_cases: React.FC<Props> = ({ onClose }) => {
                     />
                   </Field>
 
-                  <Field label="ພະນັກງານປ້ອນຂໍ້ມູນ">
-                    <input
-                      name="assigned_to"
-                      value={form.assigned_to}
-                      readOnly
-                      className={`${inputCls()} cursor-default bg-slate-50 text-slate-500`}
-                    />
+                  <Field label="ຊອງທາງລູກຄ້າແຈ້ງຂໍ້ມູນເຄສ">
+                    <select
+                      name="cust_connect"
+                      value={form.cust_connect}
+                      onChange={handleChange}
+                      className={inputCls()}
+                    >
+                      {CUST_CONNECT.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
                   </Field>
                 </div>
               </SectionCard>
@@ -415,11 +488,29 @@ const Modal_create_cases: React.FC<Props> = ({ onClose }) => {
                         touched.description && descLen < DESC_MIN,
                       )} resize-none`}
                     />
+
                     {touched.description && descLen < DESC_MIN && (
                       <p className="mt-1 text-xs text-red-500">
                         ລາຍລະອຽດຕ້ອງມີຢ່າງໜ້ອຍ {DESC_MIN} ຕົວອັກສອນ
                       </p>
                     )}
+                  </div>
+                  {/* /// ໝາຍເຫດ: ບໍ່ມີການສ້າງຟອມໃນໝາຍເຫດນີ້, ແຕ່ມັນເປັນຄ່າ placeholder ສໍາລັບ code ທີ່ອາດເພີ່ມເນານ.  */}
+                  <div className="sm:col-span-2">
+                    <div className="mb-1 flex items-center justify-between">
+                      <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        ໝາຍເຫດ / ຂໍ້ສະເໜີ
+                      </label>
+                    </div>
+                    <textarea
+                      name="notes"
+                      value={form.notes || ""}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      placeholder="ຫມາຍເຫດ..."
+                      rows={3}
+                      className={`${inputCls()} resize-none`}
+                    />
                   </div>
                 </div>
               </SectionCard>
@@ -431,13 +522,15 @@ const Modal_create_cases: React.FC<Props> = ({ onClose }) => {
               <SectionCard title="Attachment">
                 <label
                   className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 text-center transition-all ${
-                    dragOver
-                      ? "border-blue-400 bg-blue-50"
-                      : "border-slate-300 bg-slate-50 hover:border-blue-400 hover:bg-blue-50/50"
+                    imageItems.length >= MAX_IMAGES
+                      ? "cursor-not-allowed border-slate-200 bg-slate-50 opacity-60"
+                      : dragOver
+                        ? "border-blue-400 bg-blue-50"
+                        : "border-slate-300 bg-slate-50 hover:border-blue-400 hover:bg-blue-50/50"
                   }`}
                   onDragOver={(e) => {
                     e.preventDefault();
-                    setDragOver(true);
+                    if (imageItems.length < MAX_IMAGES) setDragOver(true);
                   }}
                   onDragLeave={() => setDragOver(false)}
                   onDrop={handleDrop}
@@ -449,41 +542,47 @@ const Modal_create_cases: React.FC<Props> = ({ onClose }) => {
                     <p className="text-sm font-medium text-slate-700">
                       Click or drag to upload
                     </p>
-                    <p className="text-xs text-slate-500">PNG, JPG, JPEG</p>
+                    <p className="text-xs text-slate-500">
+                      PNG, JPG, JPEG · ເລືອກໄດ້ຫຼາຍຮູບ · {imageItems.length}/
+                      {MAX_IMAGES}
+                    </p>
                   </div>
                   <input
                     type="file"
                     accept="image/*"
+                    multiple
                     onChange={handleImageChange}
+                    disabled={imageItems.length >= MAX_IMAGES}
                     className="hidden"
                   />
                 </label>
 
-                {preview ? (
-                  <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
-                    <img
-                      src={preview}
-                      alt="preview"
-                      className="h-48 w-full object-cover"
-                    />
-                    <div className="flex items-center justify-between bg-white p-2.5">
-                      <div className="min-w-0">
-                        <p className="truncate text-xs font-medium text-slate-700">
-                          {image?.name}
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          {image ? `${(image.size / 1024).toFixed(1)} KB` : ""}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={removeImage}
-                        disabled={isPending}
-                        className="ml-2 flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
+                {imageItems.length > 0 ? (
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {imageItems.map((item, i) => (
+                      <div
+                        key={item.id}
+                        className="relative overflow-hidden rounded-xl border border-slate-200"
                       >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
+                        <img
+                          src={item.preview}
+                          alt={`preview-${i + 1}`}
+                          className="h-24 w-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(item.id)}
+                          disabled={isPending}
+                          className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-white/90 text-slate-500 shadow-sm transition hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
+                          aria-label="Remove image"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                        <div className="absolute bottom-0 left-0 right-0 truncate bg-black/50 px-1.5 py-0.5 text-[10px] text-white">
+                          {item.file.name}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : (
                   <div className="mt-3 flex items-center justify-center rounded-xl bg-slate-100 py-5 text-xs text-slate-400">
@@ -497,7 +596,7 @@ const Modal_create_cases: React.FC<Props> = ({ onClose }) => {
                 <div className="space-y-2.5">
                   {[
                     { label: "Case No", value: form.case_number || "—" },
-                    { label: "ລູກຄ້າ", value: form.customer || "—" },
+                    { label: "Customer", value: form.customer || "—" },
                     {
                       label: "Product",
                       value: getLabel(PROBLEM_TYPES, form.problem_type),
@@ -509,6 +608,10 @@ const Modal_create_cases: React.FC<Props> = ({ onClose }) => {
                     {
                       label: "Status",
                       value: getLabel(STATUS_OPTIONS, form.status),
+                    },
+                    {
+                      label: "cust_connect",
+                      value: form.cust_connect || "—",
                     },
                   ].map((row) => (
                     <div

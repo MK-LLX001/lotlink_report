@@ -1,0 +1,25 @@
+ 
+CREATE TABLE `daily_service` (
+  `daily_id`    INT(11)        NOT NULL AUTO_INCREMENT,
+  `types_work`  VARCHAR(100)   NOT NULL                   COMMENT 'ປະເພດວຽກ',
+  `description` TEXT           NULL                       COMMENT 'ລາຍລະອຽດ',
+  `contact`     VARCHAR(100)   NULL                       COMMENT 'ຜູ້ຕິດຕໍ່',
+  `startDate`   DATE           NULL                       COMMENT 'ວັນທີເລີ່ມ',
+  `endDate`     DATE           NULL                       COMMENT 'ວັນທີສິ້ນສຸດ',
+  `status`      VARCHAR(20)   NOT NULL  COMMENT 'ສະຖານະ',
+  `page`        VARCHAR(100)   NULL                       COMMENT 'ໜ້າ / ໂມດູນ',
+  `agreement`   VARCHAR(100)   NULL                       COMMENT 'ຂໍ້ຕົກລົງ',
+  `img_url`     VARCHAR(200)   NULL                       COMMENT 'URL ຮູບພາບ',
+  `remark`      TEXT           NULL                       COMMENT 'ໝາຍເຫດ',
+  `created_at`  DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at`  DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP
+                               ON UPDATE CURRENT_TIMESTAMP,
+ 
+  PRIMARY KEY (`daily_id`)
+) ENGINE=InnoDB
+  DEFAULT CHARSET=utf8mb4
+  COLLATE=utf8mb4_unicode_ci
+  COMMENT='ຕາຕະລາງບັນທຶກງານປະຈຳວັນ';
+  -------------------------------
+
+  
