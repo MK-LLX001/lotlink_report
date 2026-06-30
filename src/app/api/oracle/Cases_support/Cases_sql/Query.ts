@@ -10,8 +10,10 @@ export const Insert_case_support = `
         image_url,
         cust_connect,
         notes,
+         StartDate,
+       EndDate,
         created_at,
         updated_at,
         customer
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;

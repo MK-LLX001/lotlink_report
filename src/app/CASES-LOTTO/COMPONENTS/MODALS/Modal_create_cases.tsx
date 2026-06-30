@@ -22,6 +22,8 @@ const PROBLEM_TYPES = [
   { value: "AIRLINE", label: "AIRLINE" },
   { value: "WATER", label: "ນ້ຳປະປາ" },
   { value: "EDL", label: "ໄຟຟ້າ" },
+  { value: "ຄຳແນະນຳ", label: "ຄຳແນະນຳ" },
+  { value: "ຕິດຕັ້ງແອບ", label: "ຕິດຕັ້ງແອບ" },
   { value: "OTHER", label: "ອື່ນໆ" },
 ] as const;
 
@@ -46,18 +48,6 @@ const STATUS_OPTIONS = [
   { value: "ລໍຂໍ້ມູນຈາກລູກຄ້າ", label: "ລໍຂໍ້ມູນຈາກລູກຄ້າ" },
   { value: "ແກ້ໄຂແລ້ວ", label: "ແກ້ໄຂແລ້ວ" },
   { value: "ປິດເຄສສຳເລັດແລ້ວ", label: "ປິດເຄສສຳເລັດແລ້ວ" },
-] as const;
-const CUST_CONNECT = [
-  { value: "WHATAPP", label: "WhatApp" },
-  { value: "FACEBOOK", label: "Facebook" },
-  { value: "TELEPHONE", label: "Telephone" },
-  { value: "2094495888", label: "2094495888" },
-  { value: "2091218844", label: "2091218844" },
-  { value: "2092088866", label: "2092088866" },
-  { value: "2091242288", label: "2091242288" },
-  { value: "2094453888", label: "2094453888" },
-  { value: "2057886658", label: "2057886658" },
-  { value: "OTHER", label: "ອື່ນໆ" },
 ] as const;
 
 const PRIORITY_OPTIONS = [
@@ -159,10 +149,12 @@ const Modal_create_cases: React.FC<Props> = ({ onClose }) => {
     description: "",
     notes: "",
     status: STATUS_OPTIONS[0].value,
-    cust_connect: CUST_CONNECT[0].value,
+    cust_connect: "",
     priority: "MEDIUM",
     assigned_to: "",
     customer: "",
+    StartDate: "",
+    EndDate: "",
   });
 
   // Each attachment keeps its File and preview URL together so they can
@@ -255,7 +247,6 @@ const Modal_create_cases: React.FC<Props> = ({ onClose }) => {
   const descLen = form.description.trim().length;
 
   const isValid =
-    form.case_number.trim() !== "" &&
     form.problem_type.trim() !== "" &&
     form.error_type.trim() !== "" &&
     descLen >= DESC_MIN &&
@@ -263,7 +254,8 @@ const Modal_create_cases: React.FC<Props> = ({ onClose }) => {
     form.priority.trim() !== "" &&
     form.customer.trim() !== "" &&
     form.cust_connect.trim() !== "" &&
-    form.assigned_to.trim() !== "";
+    form.assigned_to.trim() !== "" &&
+    form.StartDate.trim() !== "";
 
   const handleSubmit = () => {
     setTouched({ case_number: true, customer: true, description: true });
@@ -302,7 +294,7 @@ const Modal_create_cases: React.FC<Props> = ({ onClose }) => {
       />
 
       {/* Modal */}
-      <div className="relative z-10 flex w-full max-w-5xl flex-col rounded-2xl bg-slate-50 shadow-2xl ring-1 ring-slate-900/10 max-h-[95vh]">
+      <div className="relative z-10 flex w-full max-w-7xl flex-col rounded-2xl bg-slate-50 shadow-2xl ring-1 ring-slate-900/10 max-h-[95vh]">
         {/* ── Header ── */}
         <div className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4 rounded-t-2xl">
           <div className="flex items-center gap-3">
@@ -381,26 +373,51 @@ const Modal_create_cases: React.FC<Props> = ({ onClose }) => {
                     />
                   </Field>
 
-                  <Field label="ຊອງທາງລູກຄ້າແຈ້ງຂໍ້ມູນເຄສ">
-                    <select
+                  <Field
+                    label="ຊອງທາງລູກຄ້າແຈ້ງຂໍ້ມູນເຄສ"
+                    error={
+                      touched.cust_connect && !form.cust_connect.trim()
+                        ? "ກະລຸນາລະບຸຂໍ້ມູນລູກຄ້າ"
+                        : undefined
+                    }
+                  >
+                    <input
                       name="cust_connect"
                       value={form.cust_connect}
                       onChange={handleChange}
-                      className={inputCls()}
-                    >
-                      {CUST_CONNECT.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
+                      onBlur={handleBlur}
+                      placeholder="ຊື່ ຫຼື ເບີໂທລູກຄ້າ"
+                      className={inputCls(
+                        touched.cust_connect && !form.cust_connect.trim(),
+                      )}
+                    />
                   </Field>
                 </div>
               </SectionCard>
 
               {/* Case Details */}
               <SectionCard title="Case Details">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <Field
+                    label="ວັນທີຮັບແຈ້ງ"
+                    error={
+                      touched.StartDate && !form.StartDate.trim()
+                        ? "ກະລຸນາລະບຸຂໍ້ມູນວັນທີແຈ້ງ"
+                        : undefined
+                    }
+                  >
+                    <input
+                      type="datetime-local"
+                      name="StartDate"
+                      value={form.StartDate}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      className={inputCls(
+                        touched.StartDate && !form.StartDate.trim(),
+                      )}
+                    />
+                  </Field>
+
                   <Field label="ປະເພດຜະລິດຕະພັນ">
                     <select
                       name="problem_type"
@@ -459,6 +476,26 @@ const Modal_create_cases: React.FC<Props> = ({ onClose }) => {
                         </option>
                       ))}
                     </select>
+                  </Field>
+                  <Field
+                    label="ວັນທີສີນສຸດ"
+                    error={
+                      touched.EndDate && !form.EndDate.trim()
+                        ? "ກະລຸນາລະບຸຂໍ້ມູນວັນທີສີນສຸດ"
+                        : undefined
+                    }
+                  >
+                    <input
+                      type="datetime-local"
+                      name="EndDate"
+                      value={form.EndDate}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      min={form.StartDate || undefined}
+                      className={inputCls(
+                        touched.EndDate && !form.EndDate.trim(),
+                      )}
+                    />
                   </Field>
 
                   {/* Description */}

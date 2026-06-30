@@ -26,6 +26,8 @@ export type CaseItem = {
   close_user?: string | null;
   remove_at?: string | null;
   remove_user?: string | null;
+  StartDate: string;
+  EndDate: string | null;
 };
 
 // ─── API response ─────────────────────────────────────────────────────────────
@@ -59,6 +61,8 @@ export type DataTypeCases = {
   remove_user: string | null;
   cust_connect: string | null;
   notes: string | null;
+  StartDate: string;
+  EndDate: string | null;
 };
 
 export type Case_Payload = {
@@ -72,4 +76,6 @@ export type Case_Payload = {
   customer: string;
   cust_connect: string;
   notes: string;
+  StartDate: string;
+  EndDate: string;
 };

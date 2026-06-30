@@ -10,14 +10,14 @@ import {
 import { promises } from "dns";
 
 export class Spin_Repo {
-  async findByIdOrder(case_number: string): Promise<ORDER_SPIN_ENTITY | null> {
+  async findByIdOrder(case_number: string): Promise<ORDER_SPIN_ENTITY[]> {
     return withConnection(async (conn) => {
       const sql = `
       SELECT * FROM (
         SELECT * FROM APP_V_ORDER_SPIN WHERE WINXREF LIKE :case_1
         UNION ALL
         SELECT * FROM APP_V_ORDER_SPIN WHERE USERID LIKE :case_2
-      ) FETCH FIRST 1 ROW ONLY
+      )
     `;
 
       const result = await conn.execute(
@@ -30,7 +30,7 @@ export class Spin_Repo {
       );
 
       const rows = result.rows as ORDER_SPIN_ENTITY[] | undefined;
-      return rows?.[0] ?? null;
+      return rows ?? []; // ✅ return ทั้ง array
     });
   }
 

@@ -95,6 +95,17 @@ export async function GET(req: NextRequest) {
 }
 
 // ── POST ──────────────────────────────────────────────────────────────────────
+function generateCaseNumber(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const rand = Math.random().toString(36).slice(2, 7).toUpperCase(); // 5 ตัวอักษร/เลข
+
+  return `CS-${year}${month}${day}-${rand}`;
+  // ตัวอย่าง: CS-20260630-A1B2C
+}
+
 export async function POST(req: NextRequest) {
   try {
     const fd = await req.formData();
@@ -102,8 +113,10 @@ export async function POST(req: NextRequest) {
 
     // ---- create cases -----------------------------
     if (action === "create") {
+      const rawCaseNumber = (fd.get("case_number") as string)?.trim() ?? "";
+
       const fields = {
-        case_number: (fd.get("case_number") as string)?.trim(),
+        case_number: rawCaseNumber || generateCaseNumber(),
         problem_type: (fd.get("problem_type") as string)?.trim(),
         error_type: (fd.get("error_type") as string)?.trim(),
         description: (fd.get("description") as string)?.trim(),
@@ -113,6 +126,8 @@ export async function POST(req: NextRequest) {
         customer: (fd.get("customer") as string)?.trim(),
         cust_connect: (fd.get("cust_connect") as string)?.trim(),
         notes: (fd.get("notes") as string)?.trim(),
+        StartDate: (fd.get("StartDate") as string)?.trim() ?? "",
+        EndDate: (fd.get("EndDate") as string)?.trim() ?? "",
         image_url: null as string | null,
       };
 

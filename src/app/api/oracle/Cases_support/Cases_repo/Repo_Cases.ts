@@ -5,7 +5,6 @@ import type {
   CaseItem,
 } from "../../../../CASES-LOTTO/types/Type_Cases";
 import { Insert_case_support } from "../Cases_sql/Query";
-
 type StatusFilter = "ALL" | "ACTIVE" | "CLOSED";
 
 export type CreateCaseInput = {
@@ -19,6 +18,8 @@ export type CreateCaseInput = {
   customer?: string;
   cust_connect?: string;
   notes?: string;
+  StartDate?: string;
+  EndDate?: string;
   image_url: string | null;
 };
 
@@ -125,6 +126,8 @@ export class CasesRepo {
         data.image_url ?? null,
         data.cust_connect ?? "",
         data.notes ?? "",
+        data.StartDate || null, // ✅ เพิ่ม
+        data.EndDate || null, // ✅ เพิ่ม
         new Date(),
         new Date(),
         data.customer ?? "",

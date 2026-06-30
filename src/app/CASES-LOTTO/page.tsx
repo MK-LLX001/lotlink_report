@@ -112,7 +112,9 @@ export default function CasesPage() {
   const [caseFilter, setCaseFilter] = useState<CaseFilter>(CASE_FILTER.ALL);
   const [selectedCase, setSelectedCase] = useState<DataTypeCases | null>(null);
 
-  const [confirmDelete, setConfirmDelete] = useState<DataTypeCases | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<DataTypeCases | null>(
+    null,
+  );
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const [openModal, setOpenModal] = useState(false);
@@ -220,15 +222,14 @@ export default function CasesPage() {
           >
             + ສ້າງເຄສໃໝ່
           </button>
-          
+
           <a
-              href="/CASES-LOTTO/COMPONENTS/MODALS/REPORT" 
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center rounded-xl bg-slate-800 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700"
-            >
-              ເບິ່ງເຄສທັງໝົດ
-            </a>
+            href="/CASES-LOTTO/COMPONENTS/MODALS/REPORT"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center rounded-xl bg-slate-800 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-700"
+          >
+            ເບິ່ງເຄສທັງໝົດ
+          </a>
         </div>
       </div>
 
@@ -343,7 +344,7 @@ export default function CasesPage() {
                       "ປະເພດຂໍ້ຜິດພາດ",
                       "ສະຖານະ",
                       "ຄວາມສຳຄັນ",
-                      "ສ້າງເມື່ອ",
+                      "ວັນທີສ້າງເຄສ",
                       "ຄົນຮັບຜິດຊອບ",
                       "Action",
                     ].map((header) => (

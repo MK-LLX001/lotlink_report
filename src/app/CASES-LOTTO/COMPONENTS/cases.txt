@@ -4,3 +4,7 @@
 ALTER TABLE support_cases
     ADD COLUMN cust_connect VARCHAR(55) NULL AFTER PROMO_DATE,
     ADD COLUMN notes        TEXT NULL AFTER cust_connect;
+
+    ALTER TABLE `support_cases` 
+ADD COLUMN `StartDate` DATETIME NULL,
+ADD COLUMN `EndDate` DATETIME NULL;

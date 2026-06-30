@@ -9,30 +9,8 @@ import {
 } from "../../../hooks/Hooks_Cases";
 import { useAuth } from "@/lib/authContext";
 import { formatDate } from "../../../../utils/FormatDate";
-
+import { DataTypeCases } from "@/app/CASES-LOTTO/types/Type_Cases";
 // ── Types ─────────────────────────────────────────────────────────────────────
-
-export type DataTypeCases = {
-  id: number;
-  case_number: string;
-  customer: string;
-  description: string;
-  problem_type: string;
-  error_type: string;
-  priority: string;
-  status: string;
-  assigned_to: string;
-  image_url: string | null;
-  created_at: string;
-  updated_at: string;
-  resolved_at: string | null;
-  close_user: string | null;
-  remove_at: string | null;
-  remove_user: string | null;
-  cust_connect: string | null;
-  CUST_CONNECT?: string | null;
-  notes: string | null;
-};
 
 const PROBLEM_TYPE_OPTIONS = [
   "LOTTO_LDB",
@@ -116,7 +94,7 @@ function exportToXlsx(data: DataTypeCases[], filename: string) {
     Status: r.status,
     Priority: r.priority,
     "Assigned To": r.assigned_to,
-    "Cust Connect": r.CUST_CONNECT ?? r.cust_connect ?? "-",
+    "Cust Connect": r.cust_connect ?? r.cust_connect ?? "-",
     Notes: r.notes ?? "-",
     "Created At": formatDate(r.created_at),
     "Updated At": formatDate(r.updated_at),
@@ -170,9 +148,7 @@ const UserCasesPage = () => {
 
   // ✅ สร้าง unique assigned_to list จาก query
   const assignedToOptions = useMemo(() => {
-    const raw: DataTypeCases[] = Array.isArray(allCasesData?.data)
-      ? allCasesData.data
-      : [];
+    const raw = Array.isArray(allCasesData?.data) ? allCasesData.data : [];
     const unique = [...new Set(raw.map((c) => c.assigned_to).filter(Boolean))];
     return unique.sort((a, b) => a.localeCompare(b));
   }, [allCasesData]);
@@ -488,6 +464,8 @@ const UserCasesPage = () => {
                       "Updated At",
                       "Resolved At",
                       "Close User",
+                      "StarDate",
+                      "EndDate",
                     ].map((h) => (
                       <th
                         key={h}
@@ -520,7 +498,7 @@ const UserCasesPage = () => {
                         {row.error_type ?? "-"}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-slate-700">
-                        {row.CUST_CONNECT ?? row.cust_connect ?? "-"}
+                        {row.cust_connect ?? row.cust_connect ?? "-"}
                       </td>
                       <td
                         className="px-4 py-3 max-w-[70px] truncate text-slate-600"
@@ -559,6 +537,12 @@ const UserCasesPage = () => {
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-slate-700">
                         {row.close_user ?? "-"}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-slate-700">
+                        {row.StartDate ?? "-"}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-slate-700">
+                        {row.EndDate ?? "-"}
                       </td>
                     </tr>
                   ))}

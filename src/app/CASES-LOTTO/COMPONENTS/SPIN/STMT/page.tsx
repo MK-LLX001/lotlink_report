@@ -209,18 +209,6 @@ function PageContent() {
             <p className="mt-1 text-xs text-slate-400">{caseNumber}</p>
             <div className="mt-6 flex gap-3">
               <button
-                type="button"
-                onClick={() => setIsUpdateModalOpen(true)}
-                disabled={isClosed}
-                className={`rounded-xl px-4 py-2 text-sm font-semibold text-white transition ${
-                  isClosed
-                    ? "cursor-not-allowed bg-slate-300"
-                    : "bg-primary-700 hover:bg-primary-800"
-                }`}
-              >
-                ອັບເດດ
-              </button>
-              <button
                 onClick={() => refetch()}
                 disabled={isFetching}
                 className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
@@ -263,6 +251,18 @@ function PageContent() {
           >
             <RefreshCw size={13} className={isFetching ? "animate-spin" : ""} />
             ໂຫຼດໃໝ່
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsUpdateModalOpen(true)}
+            disabled={isClosed}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold text-white transition ${
+              isClosed
+                ? "cursor-not-allowed bg-slate-300"
+                : "bg-primary-700 hover:bg-primary-800"
+            }`}
+          >
+            ອັບເດດ
           </button>
         </div>
 

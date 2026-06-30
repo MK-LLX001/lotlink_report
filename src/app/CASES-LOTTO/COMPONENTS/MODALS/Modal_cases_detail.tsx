@@ -149,7 +149,7 @@ const Modal_case_detail: React.FC<Props> = ({ data, onClose }) => {
     label: string;
     value: React.ReactNode;
   }) => (
-    <div className="grid grid-cols-1 gap-1 border-b border-slate-100/70 py-3 sm:grid-cols-[180px_1fr] items-start transition-colors hover:bg-slate-50/40 px-2 rounded-lg">
+    <div className="grid grid-cols-2 gap-1 border-b border-slate-100/70 py-3 sm:grid-cols-[180px_1fr] items-start transition-colors hover:bg-slate-50/40 px-2 rounded-lg">
       <div className="text-xs font-semibold tracking-wide text-slate-400 sm:pt-0.5">
         {label}
       </div>
@@ -343,20 +343,30 @@ const Modal_case_detail: React.FC<Props> = ({ data, onClose }) => {
                   <h3 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-400">
                     Timeline & History
                   </h3>
-                  <div className="space-y-1 grid grid-cols-2">
+                  <div className="space-y-1  grid grid-cols-2">
+                    <InfoRow
+                      label="ວັນທີຮັບແຈ້ງ"
+                      value={formatDate(data.StartDate)}
+                    />
+                    <InfoRow
+                      label="ວັນທີສຳເລັດ"
+                      value={formatDate(data.EndDate)}
+                    />
                     <InfoRow
                       label="ວັນທີສ້າງເຄສ"
                       value={formatDate(data.created_at)}
                     />
-                    <InfoRow
-                      label="ວັນທີອັບເດດລ່າສຸດ"
-                      value={formatDate(data.updated_at)}
-                    />
+
                     <InfoRow
                       label="ວັນທີປິດເຄສສຳເລັດ"
                       value={formatDate(data.resolved_at)}
                     />
+
                     <InfoRow label="ພະນັກງານປິດເຄສ" value={data.close_user} />
+                    <InfoRow
+                      label="ວັນທີອັບເດດລ່າສຸດ"
+                      value={formatDate(data.updated_at)}
+                    />
                   </div>
                 </div>
 
